@@ -296,6 +296,17 @@ Saturation monitoring (recommended):
 Runtime behavior (recommended):
 - Do not crash or throw on saturation. Continue with degraded quality, but record a diagnostic signal (see §11) so the meta-controller and evaluation harness can react.
 
+### 4.1 Dense vs Sparse Storage (Implementation Choice)
+
+This is an implementation detail (does not change semantics).
+
+Recommendation:
+
+| Grid size | Storage | Rationale |
+|-----------|---------|-----------|
+| `<= 128×128` | dense 2D array | simplest and fast; memory is still small |
+| `> 128×128` | sparse `Map<locKey, Cell>` | avoid allocating mostly-empty grids |
+
 ---
 
 ## 5. Displacement (Order as Address)
@@ -403,6 +414,25 @@ update(stepTokenId, x, y, step) {
 [{ locKey, count, lastSeen }]
 ```
 
+Memory bounding (recommended):
+- Maintain `maxLocationsPerToken` (e.g., `500`) to cap memory per token.
+- Prune deterministically when a token exceeds the cap by keeping the top entries by `(count desc, lastSeen desc)`.
+
+Conceptual pruning pseudocode:
+
+```javascript
+function pruneTokenLocations(locMap, maxLocationsPerToken) {
+  if (locMap.size <= maxLocationsPerToken) return;
+  const sorted = [...locMap.entries()].sort(
+    (a, b) => b[1].count - a[1].count || b[1].lastSeen - a[1].lastSeen
+  );
+  locMap.clear();
+  for (let i = 0; i < maxLocationsPerToken && i < sorted.length; i++) {
+    locMap.set(sorted[i][0], sorted[i][1]);
+  }
+}
+```
+
 ### 6.2 Baseline Localization Algorithm
 
 Inputs:
@@ -492,6 +522,11 @@ Candidates can then be re-ranked by `verifiedScore` (or combined with the index 
 
 Replay reconstructs state by applying events from an earlier checkpoint up to a target step.
 
+Clarification:
+- Replay requires an **ordered event stream** (e.g., an episodic/event store with a range query API).
+- The **state semantics are experiment-dependent** (Exp2 narrative state vs Exp3 fact state). The replay engine should be parameterized by a state accumulator (e.g., `applyEventToState(state, event)`).
+- GridMap cells are not treated as a lossless source of structured state (heavy-hitters truncation is lossy). Use GridMaps for localization and optional verification; use replayed events/facts for auditable state.
+
 ### 7.1 What a Checkpoint Must Contain
 
 Checkpoints must capture **minimal state needed to resume deterministically**. A recommended schema:
@@ -536,6 +571,50 @@ For auditable reasoning, VSABrains uses explicit structural bindings rather than
 - `Workpad` stores variable bindings and supports backtracking.
 
 These primitives are intentionally deterministic and inspectable.
+
+### 8.1 Unification (matchPattern)
+
+Variables are represented as strings prefixed with `?` (e.g., `'?x'`).
+
+Unification matches a pattern against a fact signature and produces variable bindings:
+- Pattern: role→value map where values may be constants or variables (`?name`).
+- Fact: role→value map where values are constants.
+- Output: `Map<variable, constant>` or `null` if no match.
+
+Conceptual algorithm:
+
+```javascript
+function isVariable(v) {
+  return typeof v === 'string' && v.startsWith('?');
+}
+
+function matchPattern(pattern, fact) {
+  const bindings = new Map();
+
+  for (const [role, patternValue] of Object.entries(pattern)) {
+    const factValue = fact[role];
+
+    if (isVariable(patternValue)) {
+      if (bindings.has(patternValue) && bindings.get(patternValue) !== factValue) return null;
+      bindings.set(patternValue, factValue);
+      continue;
+    }
+
+    if (patternValue !== factValue) return null;
+  }
+
+  return bindings;
+}
+```
+
+Example:
+
+```javascript
+matchPattern(
+  { subject: '?x', predicate: 'enters', object: 'room_A' },
+  { subject: 'Alice', predicate: 'enters', object: 'room_A' }
+); // => Map { '?x' => 'Alice' }
+```
 
 Derivation algorithms (goal-directed multi-hop reasoning) and fact-level conflict detection are integration layers specified in DS005. DS004 only defines the deterministic binding/unification primitives those layers use.
 

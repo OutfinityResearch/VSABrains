@@ -273,21 +273,31 @@ export class Tokenizer {
 
 ```javascript
 /**
- * Append-only storage for text chunks with signatures.
+ * Append-only storage for episodic entries.
+ *
+ * Typical uses:
+ * - Exp2: step-keyed structured events for deterministic replay
+ * - Exp3 (optional): chunk entries for evidence display or additional retrieval layers
  */
 export class EpisodicStore {
-  constructor(config = { maxChunks: 100000 });
+  constructor(config = { maxEntries: 100000 });
   
-  /** Append chunk, returns chunkId */
-  async append(chunk);
+  /** Append entry, returns entryId */
+  async append(entry);
   
-  /** Get chunk by ID */
-  async get(chunkId);
+  /** Get entry by ID */
+  async get(entryId);
   
-  /** Get multiple chunks */
-  async getMany(chunkIds);
+  /** Get multiple entries */
+  async getMany(entryIds);
+
+  /**
+   * Get entries in a step range (inclusive). Required for replay-based experiments.
+   * For non-step-keyed entries, implementations may return an empty list.
+   */
+  async getRange(startStep, endStep);
   
-  /** Get all signatures for indexing */
+  /** Get all signatures for indexing (optional; chunk-mode only) */
   async getAllSignatures();
 }
 ```
@@ -465,15 +475,32 @@ export class Verifier {
 
 ```javascript
 /**
- * Replay from checkpoint to reconstruct state.
+ * Replay from checkpoint to reconstruct structured state (experiment-dependent).
+ *
+ * Replay is deterministic but the state semantics are domain-specific. The replayer
+ * is therefore parameterized by a state model (how to initialize and apply events).
  */
 export class Replayer {
-  constructor(checkpointManager, columns);
+  /**
+   * @typedef {{
+   *   init: () => any,
+   *   apply: (state: any, event: any) => void,
+   *   clone?: (state: any) => any, // optional; required when verifier needs prev/next snapshots
+   * }} ReplayStateModel
+   */
+
+  constructor(checkpointManager, episodicStore, stateModel, verifier = null);
   
-  /** Replay from checkpoint to target step */
+  /**
+   * Replay from checkpoint to target step.
+   * Returns the reconstructed domain state (shape defined by `stateModel`).
+   */
   async replay(targetStep);
   
-  /** Replay and return intermediate states */
+  /**
+   * Replay and return intermediate states (for debugging/audit).
+   * If a verifier is provided, return structured violations alongside the history.
+   */
   async replayWithHistory(targetStep);
 }
 ```

@@ -268,10 +268,10 @@ export function generateAdversarialQueries(story) {
 Exp2 evaluates reference-frame memory and replay; it should not depend on a natural-language tokenizer.
 
 Encode each event as:
-- `writeTokenIds`: a small bundle of discrete tokens written into the current cell
+- `writeTokenIds`: tokens written into the current cell (MVP recommendation: write only `stepTokenId` to reduce cell saturation)
 - `stepTokenId`: a single primary token that drives displacement and localization
 
-If `stepTokenId` is not provided explicitly, it is derived deterministically as `hashCombineU32(writeTokenIds)` (see DS004 §3.2).
+If `stepTokenId` is not provided explicitly, derive it deterministically from the event tokens (e.g., `hashCombineU32(eventTokenIds)`; see DS004 §3.2).
 
 Recommended helpers:
 
@@ -317,8 +317,13 @@ export function eventToTokens(event, vocab, corefState) {
 }
 
 export function eventToStepInput(event, vocab, corefState) {
-  const writeTokenIds = eventToTokens(event, vocab, corefState);
-  const stepTokenId = hashCombineU32(writeTokenIds);
+  const eventTokenIds = eventToTokens(event, vocab, corefState);
+  const stepTokenId = hashCombineU32(eventTokenIds);
+
+  // MVP recommendation: reduce write rate to mitigate heavy-hitters saturation.
+  // - writeTokenIds = [stepTokenId] keeps localization/replay verification viable
+  // - the full structured event remains available for deterministic replay
+  const writeTokenIds = [stepTokenId];
   return { stepTokenId, writeTokenIds, event };
 }
 
@@ -334,6 +339,94 @@ Coreference resolution for Exp2 is handled at encoding time:
 3. After encoding a non-reset event, update `corefState.lastEntityId` to the resolved subject.
 4. `SCENE_RESET` clears `corefState.lastEntityId`.
 5. Canonical approach: store `resolvedSubject` in the event stream so replay remains deterministic without additional state. Persist `corefState` in checkpoints only for legacy/raw events that do not store resolution.
+
+### 3.4.2 Answering Exp2 Queries (Replay-Based State Lookup)
+
+Exp2 queries are intentionally **machine-readable** and should not depend on LLM parsing.
+
+Canonical query format (produced by `queryToQuestion(q)` above):
+
+```text
+STATE? time=<step> entity=<entityId> attribute=<attribute>
+```
+
+Answering pipeline (baseline):
+1. Parse the query into `{ targetStep, entityId, attribute }`.
+2. Replay events from the nearest checkpoint up to `targetStep` using `Replayer` (DS002a `Replay.mjs`).
+3. Read `state.entities[entityId][attribute]` from the reconstructed state.
+4. Return `{ verdict, text }` (and optional debug evidence).
+
+Important clarification:
+- Localization is **not required** for correctness when `targetStep` is given. Use `localize(windowStepTokenIds)` only for debugging or additional consistency checks.
+
+Minimal state model (recommended for Exp2 replay):
+
+```javascript
+// Exp2State (extend as needed by stories/rules):
+// {
+//   entities: { [entityId]: { location: string|null, inventory: string[], alive: boolean } },
+//   items: { [itemId]: { location: string|null, heldBy: string|null } },
+//   conflicts?: Array<{ step: number, violations: Array<{ rule: string, reason: string }> }>,
+// }
+
+function initState() {
+  return { entities: {}, items: {} };
+}
+
+function ensureEntity(state, entityId) {
+  state.entities[entityId] ??= { location: null, inventory: [], alive: true };
+  return state.entities[entityId];
+}
+
+function ensureItem(state, itemId) {
+  state.items[itemId] ??= { location: null, heldBy: null };
+  return state.items[itemId];
+}
+
+function applyEventToState(state, event) {
+  const subject = event.resolvedSubject ?? event.subject;
+  const action = event.action;
+  const object = event.object;
+
+  switch (action) {
+    case 'enters':
+    case 'moves_to': {
+      const entity = ensureEntity(state, subject);
+      entity.location = object;
+      break;
+    }
+    case 'picks_up': {
+      const entity = ensureEntity(state, subject);
+      const item = ensureItem(state, object);
+      if (item.heldBy && item.heldBy !== subject) {
+        const prevHolder = state.entities[item.heldBy];
+        if (prevHolder) prevHolder.inventory = prevHolder.inventory.filter((i) => i !== object);
+      }
+      item.heldBy = subject;
+      item.location = null;
+      if (!entity.inventory.includes(object)) entity.inventory.push(object);
+      break;
+    }
+    case 'drops': {
+      const entity = ensureEntity(state, subject);
+      const item = ensureItem(state, object);
+      entity.inventory = entity.inventory.filter((i) => i !== object);
+      item.heldBy = null;
+      item.location = entity.location;
+      break;
+    }
+    case 'dies': {
+      const entity = ensureEntity(state, subject);
+      entity.alive = false;
+      break;
+    }
+    case 'SCENE_RESET': {
+      // Experiment-dependent. Often clears only short-term state, not long-term entity state.
+      break;
+    }
+  }
+}
+```
 
 ### 3.5 Metrics
 

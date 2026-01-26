@@ -61,7 +61,7 @@ VSABrains/
 │   │   ├── Column.mjs         # Single column with maps + location
 │   │   └── Displacement.mjs   # Displacement computation
 │   ├── memory/
-│   │   ├── EpisodicStore.mjs  # Append-only chunk storage
+│   │   ├── EpisodicStore.mjs  # Append-only episode store (events/chunks)
 │   │   ├── Index.mjs          # Inverted index for retrieval
 │   │   ├── Checkpoint.mjs     # Checkpoint management
 │   │   ├── Summary.mjs        # Window summaries for slow maps
@@ -186,22 +186,30 @@ Ownership and wiring (baseline):
 
 ### 3.3 End-to-End Example (Happy Path)
 
-Minimal discrete ingestion (Exp1/Exp2 style):
+Minimal discrete ingestion (Exp2 evaluation style):
 
 ```javascript
 const brain = new VSABrains(config);
 
-// Tokenizer.encode(text) returns TokenId[] (numbers).
-const tokens = brain.tokenizer.encode('Alice enters room_A. Bob picks up the key.');
+// Exp2 helper utilities live in eval code (see DS003 §3.4.1).
+const vocab = makeExp2Vocabulary();
+const corefState = makeCorefState();
 
-for (const tokenId of tokens) {
-  // step(tokenId) normalizes to { stepTokenId: tokenId, writeTokenIds: [tokenId] }
-  // then runs: stepWrite → displacement → stepMove.
-  await brain.step(tokenId);
+// Exp2 uses structured events encoded into deterministic StepInput objects.
+// See DS003 §3.4.1 for the canonical `eventToStepInput(...)` helper.
+const events = [
+  { time: 0, subject: 'Alice', action: 'enters', object: 'room_A' },
+  { time: 1, subject: 'Bob', action: 'picks_up', object: 'key' },
+];
+
+for (const event of events) {
+  // eventToStepInput(...) returns:
+  // { stepTokenId, writeTokenIds, event }
+  await brain.step(eventToStepInput(event, vocab, corefState));
 }
 
-// Query-time is: localize → replay → reasoner → verdict.
-const result = await brain.answer('Where is Alice?');
+// Exp2 queries are machine-readable (DS003 §3.4.1).
+const result = await brain.answer('STATE? time=0 entity=Alice attribute=location');
 ```
 
 Document ingestion with verifiable facts (Exp3 style):
@@ -217,6 +225,18 @@ const result = await brain.answer('Where is Alice?');
 ```
 
 ---
+
+### 3.4 Answer Semantics by Experiment
+
+`VSABrains.answer(question)` is a single public entry point, but the semantics depend on the experiment layer:
+
+| Experiment | Question form | Answer mechanism | Spec |
+|------------|---------------|------------------|------|
+| Exp1 | `TokenId[]` window (evaluation harness) | `localize(window)` and compare `locKey`s | DS003 Exp1 |
+| Exp2 | machine-readable string (`STATE? ...`) | replay events → reconstruct state → attribute lookup | DS003 §3.4.2 |
+| Exp3 | natural-language question (or structured `QueryPlan`) | retrieve facts/chunks → derive → conflict check → verdict | DS005 |
+
+Keep DS004 generic: it defines localization/replay primitives, but experiment layers define how questions are represented and answered.
 
 ## 4. Testing Strategy
 
@@ -251,7 +271,12 @@ describe('HeavyHitters', () => {
 
 Localization and displacement are extremely sensitive to determinism and indexing behavior. Add the following concrete tests:
 
-- `test/util/hash.test.mjs`: verify deterministic outputs for a fixed set of `(input, seed)` pairs (golden vectors taken from the MurmurHash3 x86_32 reference).
+- `test/util/hash.test.mjs`: verify deterministic outputs for a fixed set of `(input, seed)` pairs (golden vectors).
+  - Assumption: `murmurHash32(u32, seed)` hashes a single `uint32` as 4 little-endian bytes (see DS002a `util/hash.mjs`).
+  - Recommended vectors:
+    - `murmurHash32(0x00000000, 0) === 0x2362f9de`
+    - `hashString('hello', 0) === 0x248bfa47`
+    - `hashCombineU32([1, 2], 0) === 0x647dde73`
 - `test/util/Tokenizer.test.mjs`: tokenize/encode a fixed string and assert stable token sequence (including punctuation) and stable `UNK` behavior once `maxSize` is exceeded.
 - `test/localization/LocationIndex.test.mjs`:
   - Insert `N=10_000` writes for a small vocab and assert `getCandidates(tokenId, limit)` returns at most `limit`, sorted by `(count desc, lastSeen desc)`.
@@ -347,7 +372,7 @@ The core system has **zero external dependencies** for the discrete components. 
 - [ ] Tokenizer + Vocabulary produce deterministic token IDs
 
 ### Phase 2 (Memory)
-- [ ] EpisodicStore append/get works for 10K+ chunks
+- [ ] EpisodicStore append/get/getRange works for 10K+ entries
 - [ ] Index queries return correct chunks
 - [ ] Checkpoints enable state reconstruction
 - [ ] Summaries preserve critical arguments (who/what/when) and hash deterministically
