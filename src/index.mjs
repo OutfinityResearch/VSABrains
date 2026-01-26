@@ -309,6 +309,7 @@ export class VSABrains {
     if (!entity) return { verdict: 'unsupported', text: null, reason: 'entity_not_found' };
     const value = entity[parsed.attribute];
     if (value === undefined) return { verdict: 'unsupported', text: null, reason: 'attribute_not_found' };
+    if (value === null) return { verdict: 'supported', text: null };
     return { verdict: 'supported', text: Array.isArray(value) ? value.join(', ') : String(value) };
   }
 

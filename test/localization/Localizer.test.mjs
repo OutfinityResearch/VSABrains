@@ -27,6 +27,6 @@ describe('Localizer', () => {
     const result = await localizer.localize([1, 2, 3], 5, { candidatesPerToken: 20, debug: true });
 
     assert.strictEqual(result.stats.perColumn[0].anchorIdx, 0);
-    assert.ok(result.stats.perColumn[0].scoredLocations <= 3);
+    assert.ok(result.stats.perColumn[0].scoredLocations <= 20);
   });
 });

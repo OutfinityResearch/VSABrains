@@ -473,6 +473,7 @@ export class Verifier {
 
 #### 3.3.4 Replay.mjs
 
+{% raw %}
 ```javascript
 /**
  * Replay from checkpoint to reconstruct structured state (experiment-dependent).
@@ -504,6 +505,7 @@ export class Replayer {
   async replayWithHistory(targetStep);
 }
 ```
+{% endraw %}
 
 ### Phase 4: Consensus
 
@@ -704,6 +706,7 @@ export class FactStore {
 
 #### 3.6.3 FactExtractor.mjs
 
+{% raw %}
 ```javascript
 /**
  * LLM-based fact extraction wrapper.
@@ -745,6 +748,7 @@ export class FactExtractor {
   async consistencyCheck(chunk, runs = 5);
 }
 ```
+{% endraw %}
 
 ### Phase 7: Control
 

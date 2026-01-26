@@ -208,6 +208,7 @@ Notes:
 
 ### 3.2 Step Input
 
+{% raw %}
 ```javascript
 /**
  * @typedef {number} TokenId
@@ -223,6 +224,7 @@ Notes:
  * }} StepInput
  */
 ```
+{% endraw %}
 
 `step` is a monotonically increasing counter owned by the controller/runtime. It is passed separately to write/indexing methods so that indices can track recency (`lastSeen`).
 
@@ -253,6 +255,7 @@ Constraint: this packing assumes `0 <= x,y < 65536` (true for typical grid sizes
 
 ### 3.4 Localization Candidate Shape
 
+{% raw %}
 ```javascript
 /**
  * @typedef {{
@@ -266,6 +269,7 @@ Constraint: this packing assumes `0 <= x,y < 65536` (true for typical grid sizes
  * }} LocalizationCandidate
  */
 ```
+{% endraw %}
 
 ### 3.5 Hashing and Collisions (Practical Note)
 

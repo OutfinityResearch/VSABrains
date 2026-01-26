@@ -63,6 +63,7 @@ Internal flow (conceptual):
 
 Any provider (OpenAI/Anthropic/local) must implement a single minimal interface.
 
+{% raw %}
 ```javascript
 /**
  * Provider-agnostic LLM client interface.
@@ -78,6 +79,7 @@ Any provider (OpenAI/Anthropic/local) must implement a single minimal interface.
  * }} LLMClient
  */
 ```
+{% endraw %}
 
 Requirements:
 - Deterministic settings when possible (`temperature=0`, fixed model, stable seed).
@@ -163,6 +165,7 @@ Retrieval must be **deterministic** and **auditable**: every returned fact must 
 
 For stable behavior (especially in evaluation), the system should operate on a structured query plan:
 
+{% raw %}
 ```javascript
 /**
  * @typedef {{
@@ -183,6 +186,7 @@ For stable behavior (especially in evaluation), the system should operate on a s
  * }} QueryPlan
  */
 ```
+{% endraw %}
 
 ### 5.2 Deterministic Planning (Recommended)
 
