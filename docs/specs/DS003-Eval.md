@@ -189,7 +189,7 @@ The experiment succeeds if:
 
 Validate that the system maintains coherent state tracking over long sequences with:
 - Entity state changes
-- Coreference (pronouns referring to previous entities; see DS000)
+- Coreference (pronouns referring to previous entities; see [DS001 Glossary](DS001-Vision.md#4-glossary))
 - Scene resets (context changes)
 - Repetitive motifs (creating localization challenges)
 

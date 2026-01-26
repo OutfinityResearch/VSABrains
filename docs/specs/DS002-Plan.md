@@ -41,7 +41,6 @@ VSABrains/
 ├── docs/
 │   ├── index.html
 │   └── specs/
-│       ├── DS000-Glossary.md
 │       ├── DS001-Vision.md
 │       ├── DS002-Plan.md
 │       ├── DS003-Eval.md

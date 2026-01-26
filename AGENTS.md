@@ -38,6 +38,11 @@ docs/specs/    - Design specifications (DS001, DS002, DS003, ...)
 - All public APIs must be documented with JSDoc comments
 - Unit tests required for all core components
 
+## Git Policy
+
+- Do not run any `git` commands (including `git status`, `git diff`, `git log`, `git add`, `git commit`, etc.).
+- Do not request or suggest git operations; the user handles all commits and repository management.
+
 ## Key Experiments
 
 1. **Reference-Frame Alignment & Consensus** - Validates multi-column localization under ambiguity
@@ -47,7 +52,7 @@ docs/specs/    - Design specifications (DS001, DS002, DS003, ...)
 ## When Making Changes
 
 - Consult `docs/specs/DS001-Vision.md` for architectural rationale
-- Consult `docs/specs/DS000-Glossary.md` for terminology used across specs
+- Consult the glossary section in `docs/specs/DS001-Vision.md` for shared terminology
 - Consult `docs/specs/DS004-Algorithms-and-Data-Structures.md` for concrete algorithm/data-structure specifications
 - Consult `docs/specs/DS005-Integrations-and-Non-Core.md` for text/LLM integration and answer-contract details
 - Follow the implementation plan in `docs/specs/DS002-Plan.md`

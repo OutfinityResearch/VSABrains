@@ -1,7 +1,7 @@
 # DS001 - Vision: Discrete CPU-First Learning Architecture
 
 **Status:** Draft  
-**Version:** 0.5  
+**Version:** 0.6  
 **Last Updated:** 2026-01-26
 
 ---
@@ -87,9 +87,80 @@ To keep specs smaller and easier to implement, detailed specifications are split
 
 - [DS004 - Core Algorithms and Data Structures](DS004-Algorithms-and-Data-Structures.md): the discrete runtime (steps, `GridMap`s, displacement, localization, replay/checkpoints, reasoning primitives, diagnostics).
 - [DS005 - Integrations and Non-Core Implementation](DS005-Integrations-and-Non-Core.md): text ingestion, LLM-backed extraction, fact validation, and the verifiable answer contract.
-- [DS000 - Glossary](DS000-Glossary.md): shared terminology used across DS001–DS005.
 
-## 4. Success Criteria
+If you are implementing the system, start with DS004 (core runtime), then DS005 (optional integrations).
+
+## 4. Glossary
+
+This glossary defines project terms used across the design specifications.
+
+When a term has important implementation details, the entry includes a reference to the specification that defines it (typically DS004).
+
+### 4.1 Core Terms
+
+#### Token ID (`tokenId`)
+
+A deterministic integer used to represent a discrete symbol (word token, entity ID, predicate ID, summary token, etc.).
+
+Implementation: DS004 §3 (data model), DS002 `util/Vocabulary.mjs`, DS002 `util/Tokenizer.mjs`.
+
+#### Step Token ID (`stepTokenId`)
+
+The primary `tokenId` for a step. It drives:
+- displacement (movement)
+- localization indexing (`LocationIndex`)
+
+Implementation: DS004 §3.1, DS004 §5 (displacement).
+
+#### Write Tokens (`writeTokenIds`)
+
+Zero or more auxiliary `tokenId`s written into the current grid cell for later retrieval/reasoning.
+
+Implementation: DS004 §3.1 (token conventions), DS004 §2.1 (step ingestion).
+
+#### Location Key (`locKey`)
+
+A packed 32-bit integer derived from `(x, y)` grid coordinates for fast equality checks.
+
+Implementation: DS004 §3.3 and DS004 §6 (localization).
+
+### 4.2 Algorithms and Concepts
+
+#### Heavy-Hitters
+
+A streaming algorithm that keeps an approximate (or exact, depending on implementation) **top-K** set of most frequent items seen so far, using bounded memory.
+
+In VSABrains, each grid cell maintains a heavy-hitters summary of token IDs to prevent local “muddiness” (cell saturation).
+
+Implementation: DS004 §4 (`GridMap` + heavy-hitters cells), DS002 `core/HeavyHitters.mjs`.
+
+#### Toroidal Topology (“Pac-Man wrap”)
+
+A grid topology where moving past an edge wraps around to the opposite edge:
+- `x = wrap(x + dx, width)`
+- `y = wrap(y + dy, height)`
+
+This avoids edge effects and keeps movement rules uniform.
+
+Implementation: DS004 §5.2 (wrapping), DS004 §2.1 (`stepMove`).
+
+#### Coreference Resolution
+
+Resolving references like pronouns (“he”, “she”, “it”) or aliases back to the entity they refer to.
+
+In Exp2, this typically means tracking the most recently mentioned entity so “he” can be mapped to the correct subject.
+
+Implementation: DS003 §3 (Exp2 narrative coherence).
+
+#### Work Signature
+
+An explicit role→value map used for auditable reasoning.
+
+Analogy: a JavaScript `Map` (or plain object) that binds roles like `subject`, `predicate`, `object` to concrete values, optionally including variables for pattern matching.
+
+Implementation: DS004 §8 (reasoning primitives), DS002 `reasoning/WorkSignature.mjs`.
+
+## 5. Success Criteria
 
 The architecture succeeds if:
 
@@ -101,7 +172,7 @@ The architecture succeeds if:
 
 ---
 
-## 5. References
+## 6. References
 
 - Hawkins, J., et al. *A Thousand Brains: A New Theory of Intelligence* (2021)
 - Kanerva, P. *Hyperdimensional Computing: An Introduction to Computing in Distributed Representation* (2009)

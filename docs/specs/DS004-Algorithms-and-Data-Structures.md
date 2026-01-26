@@ -30,7 +30,7 @@ The system is designed around a deterministic **step clock**.
    - update `LocationIndex` for `stepTokenId`
    - append the event to the episodic store (optional; depends on experiment)
 3. Compute displacement from the column’s displacement buffer (see §5).
-4. `Column.stepMove({ dx, dy })` (wrap-around “Pac-Man style”; see DS000).
+4. `Column.stepMove({ dx, dy })` (wrap-around “Pac-Man style”; see [DS001 Glossary](DS001-Vision.md#4-glossary)).
 5. Update diagnostics counters (see §11).
 
 ### 2.2 Query-Time (high level)
@@ -110,7 +110,7 @@ Constraint: this packing assumes `0 <= x,y < 65536` (true for typical grid sizes
 
 ## 4. GridMap and Heavy-Hitters Cells
 
-A `GridMap` is a 2D grid (dense array or sparse hash-grid). Each cell stores a bounded **heavy-hitters** summary (see DS000):
+A `GridMap` is a 2D grid (dense array or sparse hash-grid). Each cell stores a bounded **heavy-hitters** summary (see [DS001 Glossary](DS001-Vision.md#4-glossary)):
 - Keep only the top-K token IDs by frequency (optionally with recency tie-breakers).
 - Reads are deterministic and auditable: `readTopK(x, y, k)` returns a ranked list.
 
@@ -162,7 +162,7 @@ function computeDisplacement(recentStepTokenIds, config) {
 }
 ```
 
-Wrapping (toroidal topology; see DS000) is recommended:
+Wrapping (toroidal topology; see [DS001 Glossary](DS001-Vision.md#4-glossary)) is recommended:
 
 ```javascript
 function wrap(n, size) {
@@ -250,7 +250,7 @@ Baseline policies:
 
 For auditable reasoning, VSABrains uses explicit structural bindings rather than vector superposition.
 
-- `WorkSignature`: a role→value map (see DS000).
+- `WorkSignature`: a role→value map (see [DS001 Glossary](DS001-Vision.md#4-glossary)).
 - Pattern matching binds variables to constants.
 - `Workpad` stores variable bindings and supports backtracking.
 
@@ -304,4 +304,3 @@ When ambiguous or failing, degrade **auditably**:
 - low confidence → keep multiple hypotheses
 - checkpoint missing → replay from earlier checkpoint; cap replay; otherwise refuse
 - verifier conflict → return `conflicting` with minimal conflict chain
-
