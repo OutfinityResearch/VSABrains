@@ -47,5 +47,6 @@ docs/specs/    - Design specifications (DS001, DS002, DS003, ...)
 ## When Making Changes
 
 - Consult `docs/specs/DS001-Vision.md` for architectural rationale
+- Consult `docs/specs/DS004-Algorithms-and-Data-Structures.md` for concrete algorithm/data-structure specifications
 - Follow the implementation plan in `docs/specs/DS002-Plan.md`
 - Ensure changes don't break evaluation criteria in `docs/specs/DS003-Eval.md`

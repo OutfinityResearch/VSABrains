@@ -43,7 +43,8 @@ VSABrains/
 │   └── specs/
 │       ├── DS001-Vision.md
 │       ├── DS002-Plan.md
-│       └── DS003-Eval.md
+│       ├── DS003-Eval.md
+│       └── DS004-Algorithms-and-Data-Structures.md
 ├── src/
 │   ├── index.mjs              # Main entry point, exports public API
 │   ├── core/
@@ -846,7 +847,7 @@ export class Controller {
 export class MetaController {
   constructor(controller, config);
   
-  /** Select regime based on metrics (see DS001 §8.4 for baseline regimes) */
+  /** Select regime based on metrics (see DS004 §8.4 for baseline regimes) */
   selectRegime(metrics);
   
   /** Register new theory/regime */

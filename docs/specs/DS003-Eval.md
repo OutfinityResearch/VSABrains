@@ -242,7 +242,7 @@ Encode each event as:
 - `writeTokenIds`: a small bundle of discrete tokens written into the current cell
 - `stepTokenId`: a single primary token that drives displacement and localization
 
-If `stepTokenId` is not provided explicitly, it is derived deterministically as `hashCombineU32(writeTokenIds)` (see DS001 §3.3.1).
+If `stepTokenId` is not provided explicitly, it is derived deterministically as `hashCombineU32(writeTokenIds)` (see DS004 §3.3.1).
 
 Recommended helpers:
 
