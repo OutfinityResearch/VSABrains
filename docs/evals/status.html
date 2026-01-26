@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>VSABrains - Evaluation Status</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/site.css">
+    <style>
+      .status-pill {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        border: 1px solid rgba(0,0,0,0.15);
+        background: rgba(0,0,0,0.04);
+      }
+      .status-pass { border-color: #1f7a3b; color: #1f7a3b; background: rgba(31,122,59,0.08); }
+      .status-partial { border-color: #b56b14; color: #b56b14; background: rgba(181,107,20,0.08); }
+      .status-pending { border-color: #8a8a8a; color: #8a8a8a; background: rgba(0,0,0,0.04); }
+      .table { width: 100%; border-collapse: collapse; font-size: 14px; }
+      .table th, .table td { text-align: left; padding: 10px 8px; border-bottom: 1px solid rgba(0,0,0,0.1); }
+      .table th { font-weight: 600; }
+      .muted { color: rgba(0,0,0,0.6); }
+      .section + .section { margin-top: 24px; }
+      .note { font-size: 13px; color: rgba(0,0,0,0.65); }
+    </style>
+  </head>
+  <body>
+    <div class="site">
+      <header class="header">
+        <a class="brand" href="../index.html" aria-label="VSABrains home">
+          <span>VSABrains</span>
+        </a>
+      </header>
+
+      <main class="main content">
+        <div class="hero">
+          <h1 class="hero-title">Evaluation Status</h1>
+          <p class="hero-subtitle">
+            Current validation state against DS003 criteria.
+          </p>
+        </div>
+
+        <div class="section">
+          <h2>Summary</h2>
+          <p><span class="status-pill status-partial">Partial Success</span></p>
+          <p class="note">
+            Last full run: 2026-01-26T20:23:15Z. Exp1/Exp2/Exp3 passed the current implemented criteria. Full DS003 compliance is pending for metrics that are not yet measured (time localization, extraction consistency with LLM enabled).
+          </p>
+        </div>
+
+        <div class="section">
+          <h2>Experiment 1: Reference-Frame Alignment</h2>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Metric</th>
+                <th>Value</th>
+                <th>Target</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>Loc@1 (clean)</td><td>1.00</td><td>&gt; 0.85</td><td><span class="status-pill status-pass">Pass</span></td></tr>
+              <tr><td>Loc@5 (clean)</td><td>1.00</td><td>&gt; 0.95</td><td><span class="status-pill status-pass">Pass</span></td></tr>
+              <tr><td>Consensus Gain</td><td>0.103</td><td>&gt; 0.05</td><td><span class="status-pill status-pass">Pass</span></td></tr>
+              <tr><td>Noise Robustness (10%)</td><td>1.00</td><td>&gt; 0.90</td><td><span class="status-pill status-pass">Pass</span></td></tr>
+              <tr><td>Ambiguous Disambiguation</td><td>Not measured</td><td>&gt; 0.70</td><td><span class="status-pill status-pending">Pending</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="section">
+          <h2>Experiment 2: Narrative Coherence</h2>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Metric</th>
+                <th>Value</th>
+                <th>Target</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>State Accuracy</td><td>1.00</td><td>&gt; 0.85</td><td><span class="status-pill status-pass">Pass</span></td></tr>
+              <tr><td>Motif Handling</td><td>1.00</td><td>&gt; 0.75</td><td><span class="status-pill status-pass">Pass</span></td></tr>
+              <tr><td>Coref Resolution</td><td>1.00</td><td>&gt; 0.90</td><td><span class="status-pill status-pass">Pass</span></td></tr>
+              <tr><td>Time Localization</td><td>Not measured</td><td>&gt; 0.80</td><td><span class="status-pill status-pending">Pending</span></td></tr>
+              <tr><td>Conflict Detection</td><td>Not measured</td><td>&gt; 0.90</td><td><span class="status-pill status-pending">Pending</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="section">
+          <h2>Experiment 3: Grounded RAG</h2>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Metric</th>
+                <th>Value</th>
+                <th>Target</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>Supported Precision</td><td>1.00</td><td>&gt; 0.95</td><td><span class="status-pill status-pass">Pass</span></td></tr>
+              <tr><td>Supported Recall</td><td>1.00</td><td>&gt; 0.85</td><td><span class="status-pill status-pass">Pass</span></td></tr>
+              <tr><td>Refusal Accuracy</td><td>1.00</td><td>&gt; 0.90</td><td><span class="status-pill status-pass">Pass</span></td></tr>
+              <tr><td>Conflict Precision/Recall</td><td>1.00 / 1.00</td><td>&gt; 0.85 / &gt; 0.80</td><td><span class="status-pill status-pass">Pass</span></td></tr>
+              <tr><td>Chain Correctness</td><td>1.00</td><td>&gt; 0.90</td><td><span class="status-pill status-pass">Pass</span></td></tr>
+              <tr><td>Extraction Consistency</td><td>Not measured (manual facts baseline)</td><td>&gt;= 0.80</td><td><span class="status-pill status-pending">Pending</span></td></tr>
+            </tbody>
+          </table>
+          <p class="note">Exp3 is validated on manual facts. Extractor-enabled run and consistency metrics are pending.</p>
+        </div>
+      </main>
+
+      <footer class="footer">
+        Status page generated from the latest eval outputs and DS003 success criteria.
+      </footer>
+    </div>
+  </body>
+</html>
