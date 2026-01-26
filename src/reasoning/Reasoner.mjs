@@ -122,14 +122,14 @@ export class Reasoner {
           object: expired ? 'true' : 'false',
           qualifiers: best.qualifiers
         };
-        return {
-          text: expired ? 'No' : 'Yes',
-          verdict: 'supported',
-          chunksUsed: best.source?.chunkId ? [best.source.chunkId] : [],
-          factChain: [
-            { factId: best.id ?? 'fact0', role: 'premise', fact: best },
-            { factId: 'derived0', role: 'derived', fact: derived }
-          ],
+    return {
+      text: expired ? 'No' : 'Yes',
+      verdict: 'supported',
+      chunksUsed: best.source?.chunkId != null ? [String(best.source.chunkId)] : [],
+      factChain: [
+        { factId: best.id ?? 'fact0', role: 'premise', fact: best },
+        { factId: 'derived0', role: 'derived', fact: derived }
+      ],
           supportScores: { [best.id ?? 'fact0']: best.confidence ?? 1, derived0: 1 },
           conflicts: []
         };
@@ -139,7 +139,7 @@ export class Reasoner {
     return {
       text: String(best.object ?? ''),
       verdict: 'supported',
-      chunksUsed: best.source?.chunkId ? [best.source.chunkId] : [],
+      chunksUsed: best.source?.chunkId != null ? [String(best.source.chunkId)] : [],
       factChain: [
         { factId: best.id ?? 'fact0', role: 'premise', fact: best }
       ],

@@ -133,7 +133,15 @@ export class VSABrains {
         const extracted = await this.factExtractor.extract(chunk.text);
         const validated = await this.factExtractor.validateAndFilter(extracted, chunk.text);
         for (const fact of validated) {
-          await this.factStore.add({ ...fact, source: { docId: metadata.docId ?? 'doc', chunkId } });
+          const qualifiers = { ...(fact.qualifiers ?? {}) };
+          if (metadata.version && qualifiers.version == null) {
+            qualifiers.version = metadata.version;
+          }
+          await this.factStore.add({
+            ...fact,
+            qualifiers,
+            source: { docId: metadata.docId ?? 'doc', chunkId }
+          });
         }
       }
 

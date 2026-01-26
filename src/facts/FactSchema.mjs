@@ -24,7 +24,15 @@ export const FactSchema = {
     const { start, end } = fact.span;
     if (start < 0 || end > sourceText.length || end <= start) return false;
     const snippet = sourceText.slice(start, end);
-    if (fact.subject && !snippet.includes(String(fact.subject))) return false;
+    if (fact.subject) {
+      const subject = String(fact.subject);
+      if (!snippet.includes(subject)) {
+        const normalizedSnippet = normalizeText(snippet);
+        const variants = subjectVariants(subject);
+        const hasVariant = variants.some((variant) => normalizedSnippet.includes(variant));
+        if (!hasVariant) return false;
+      }
+    }
     if (typeof fact.object === 'number' && !snippet.includes(String(fact.object))) return false;
     return true;
   },
@@ -43,6 +51,18 @@ export const FactSchema = {
     };
   }
 };
+
+function normalizeText(text) {
+  return text.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function subjectVariants(subject) {
+  const norm = normalizeText(subject).replace(/_/g, ' ').trim();
+  const variants = new Set([norm]);
+  if (!norm.endsWith('s')) variants.add(`${norm}s`);
+  if (norm.endsWith('s')) variants.add(norm.slice(0, -1));
+  return [...variants];
+}
 
 export class Fact {
   constructor(data) {
