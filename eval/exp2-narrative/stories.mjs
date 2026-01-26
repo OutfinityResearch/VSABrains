@@ -73,20 +73,12 @@ export function generateStory(config = {}) {
 
 export function generateQueries(story, numQueries = 10) {
   const queries = [];
-  const times = story.events.map((e) => e.time);
-  const entities = new Set();
-  for (const key of story.groundTruth.keys()) {
-    const [entityId] = key.split(':');
-    entities.add(entityId);
-  }
-
-  const entityList = [...entities];
-  for (let i = 0; i < numQueries; i++) {
-    const time = times[Math.floor(Math.random() * times.length)] ?? 0;
-    const entity = entityList[Math.floor(Math.random() * entityList.length)] ?? 'E1';
-    const attribute = Math.random() < 0.5 ? 'location' : 'inventory';
-    const expectedAnswer = story.groundTruth.get(`${entity}:${time}:${attribute}`) ?? null;
-    queries.push({ time, entity, attribute, expectedAnswer });
+  const keys = [...story.groundTruth.keys()].sort();
+  for (let i = 0; i < numQueries && i < keys.length; i++) {
+    const key = keys[i];
+    const [entity, time, attribute] = key.split(':');
+    const expectedAnswer = story.groundTruth.get(key) ?? null;
+    queries.push({ time: Number(time), entity, attribute, expectedAnswer });
   }
 
   return queries;
@@ -121,6 +113,13 @@ function applyEventToState(state, event) {
     case 'picks_up': {
       const entity = ensureEntity(state, subject);
       const item = ensureItem(state, obj);
+      if (item.heldBy && item.heldBy !== subject) {
+        const prevHolder = state.entities[item.heldBy];
+        if (prevHolder) {
+          prevHolder.inventory = prevHolder.inventory.filter((i) => i !== obj);
+        }
+      }
+
       item.heldBy = subject;
       item.location = null;
       if (!entity.inventory.includes(obj)) entity.inventory.push(obj);

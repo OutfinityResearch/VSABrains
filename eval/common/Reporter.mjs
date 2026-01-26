@@ -24,6 +24,15 @@ export const Reporter = {
       const top5 = results?.scenarioA?.top5Acc ?? 0;
       criteria.push({ criterion: 'top1Acc', passed: top1 > 0.85, actual: top1, target: 0.85 });
       criteria.push({ criterion: 'top5Acc', passed: top5 > 0.95, actual: top5, target: 0.95 });
+
+      if (results?.scenarioB?.consensusGain != null) {
+        criteria.push({
+          criterion: 'consensusGain',
+          passed: results.scenarioB.consensusGain > 0.05,
+          actual: results.scenarioB.consensusGain,
+          target: 0.05
+        });
+      }
     }
 
     if (experimentName === 'exp2-narrative') {

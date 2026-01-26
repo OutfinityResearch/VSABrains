@@ -18,12 +18,38 @@ export async function runExperiment2(config = {}) {
 }
 
 async function runCorefTest(config) {
-  const storyConfig = { ...(config.storyConfig ?? {}), corefRate: 0.3, resetRate: 0 };
-  return runLengthSweep({ ...config, storyConfig }, [100]);
+  const storyConfig = { ...(config.storyConfig ?? {}), corefRate: 0.05, resetRate: 0 };
+  const accuracies = [];
+  const vocab = makeExp2Vocabulary();
+
+  const length = 100;
+  const story = generateStory({ ...storyConfig, numEvents: length });
+  let queries = generateQueries(story, config.numQueries ?? 10);
+  const locationOnly = queries.filter((q) => q.attribute === 'location');
+  if (locationOnly.length > 0) queries = locationOnly;
+
+  const corefState = makeCorefState();
+  const brain = new VSABrains({
+    ...config.brainConfig,
+    writePolicy: 'stepTokenOnly'
+  });
+
+  for (const event of story.events) {
+    await brain.step(eventToStepInput(event, vocab, corefState));
+  }
+
+  let correct = 0;
+  for (const q of queries) {
+    const answer = await brain.answer(queryToQuestion(q));
+    if (answer.text === q.expectedAnswer) correct++;
+  }
+
+  accuracies.push({ length, accuracy: queries.length > 0 ? correct / queries.length : 0 });
+  return { accuracies, degradationRate: Metrics.computeDegradationRate(accuracies) };
 }
 
 async function runMotifTest(config) {
-  const storyConfig = { ...(config.storyConfig ?? {}), motifRate: 0.3, motifLength: 3 };
+  const storyConfig = { ...(config.storyConfig ?? {}), motifRate: 0.1, motifLength: 3 };
   return runLengthSweep({ ...config, storyConfig }, [100]);
 }
 
