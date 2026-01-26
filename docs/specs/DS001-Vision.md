@@ -1,7 +1,7 @@
 # DS001 - Vision: Discrete CPU-First Learning Architecture
 
 **Status:** Draft  
-**Version:** 0.4  
+**Version:** 0.5  
 **Last Updated:** 2026-01-26
 
 ---
@@ -83,20 +83,11 @@ This architectural choice makes verification powerful: verdicts (`supported`/`co
 
 ### 3.2 Where the Detailed Specs Live
 
-The detailed, implementation-oriented specifications (algorithms and data structures) live in [DS004 - Algorithms and Data Structures](DS004-Algorithms-and-Data-Structures.md).
+To keep specs smaller and easier to implement, detailed specifications are split into:
 
-Moved sections (DS004 references preserve DS001 numbering):
-
-- Memory structure (`GridMap`, heavy-hitters cells) → DS004 §3.2
-- Tokens and step normalization (`stepTokenId`, `writeTokenIds`) → DS004 §3.3
-- Hashing utilities (`murmurHash32`, `hashString`, `hashCombine`) → DS004 §3.4
-- Displacement (trajectory encoding) → DS004 §4
-- Localization, verification, and replay → DS004 §5
-- Work signatures, unification, and workpads → DS004 §6
-- Slow maps, summaries, and checkpointing → DS004 §7
-- Multi-column consensus and regimes → DS004 §8
-- Verifiable RAG pipeline (fact schema, predicate vocab, span validation) → DS004 §9
-- Diagnostics and deterministic failure handling → DS004 §10
+- [DS004 - Core Algorithms and Data Structures](DS004-Algorithms-and-Data-Structures.md): the discrete runtime (steps, `GridMap`s, displacement, localization, replay/checkpoints, reasoning primitives, diagnostics).
+- [DS005 - Integrations and Non-Core Implementation](DS005-Integrations-and-Non-Core.md): text ingestion, LLM-backed extraction, fact validation, and the verifiable answer contract.
+- [DS000 - Glossary](DS000-Glossary.md): shared terminology used across DS001–DS005.
 
 ## 4. Success Criteria
 

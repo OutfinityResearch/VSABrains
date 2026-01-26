@@ -727,7 +727,7 @@ function jaccard(aSet, bSet) {
 
 ### 4.7 Output Contract Validation
 
-Every answer must include the required artifacts:
+Every answer must include the required artifacts (contract specified in DS005):
 
 ```javascript
 function validateOutputContract(answer) {

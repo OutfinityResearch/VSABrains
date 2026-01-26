@@ -24,8 +24,10 @@
           <a href="index.html">Home</a>
           <a href="specs-viewer.html?doc=specs/DS001-Vision.md">Vision</a>
           <a href="specs-viewer.html?doc=specs/DS004-Algorithms-and-Data-Structures.md">Algorithms</a>
+          <a href="specs-viewer.html?doc=specs/DS005-Integrations-and-Non-Core.md">Integrations</a>
           <a href="specs-viewer.html?doc=specs/DS002-Plan.md">Plan</a>
           <a href="specs-viewer.html?doc=specs/DS003-Eval.md">Evaluation</a>
+          <a href="specs-viewer.html?doc=specs/DS000-Glossary.md">Glossary</a>
         </nav>
       </header>
       
@@ -42,8 +44,8 @@
         <div class="section">
           <h2>Design Specifications</h2>
           <p>
-            The project is documented through four design specifications that cover architecture,
-            algorithms, implementation, and evaluation. Each specification builds on the core insight:
+            The project is documented through a small set of design specifications that cover architecture,
+            core algorithms, integration details, implementation, and evaluation. Each specification builds on the core insight:
             <strong>order as address, not superposition</strong>.
           </p>
           <div class="link-grid">
@@ -55,10 +57,17 @@
               </div>
             </a>
             <a href="specs-viewer.html?doc=specs/DS004-Algorithms-and-Data-Structures.md" class="card">
-              <div class="card-title">DS004 - Algorithms & Data Structures</div>
+              <div class="card-title">DS004 - Core Algorithms</div>
               <div class="card-note">
-                Concrete specifications for GridMaps, displacement, localization, reasoning, and
-                verifiable RAG validation.
+                Core discrete runtime: GridMaps, displacement, localization, replay/checkpoints,
+                reasoning primitives, diagnostics.
+              </div>
+            </a>
+            <a href="specs-viewer.html?doc=specs/DS005-Integrations-and-Non-Core.md" class="card">
+              <div class="card-title">DS005 - Integrations</div>
+              <div class="card-note">
+                Text ingestion, LLM-backed extraction, fact validation, and verifiable answer contract
+                for Exp3-style grounded RAG.
               </div>
             </a>
             <a href="specs-viewer.html?doc=specs/DS002-Plan.md" class="card">
@@ -73,6 +82,13 @@
               <div class="card-note">
                 Three experimental suites with metrics and success criteria for validating 
                 the architecture.
+              </div>
+            </a>
+            <a href="specs-viewer.html?doc=specs/DS000-Glossary.md" class="card">
+              <div class="card-title">DS000 - Glossary</div>
+              <div class="card-note">
+                Shared terminology: heavy-hitters, toroidal topology, coreference, work signatures,
+                token/step concepts.
               </div>
             </a>
           </div>
