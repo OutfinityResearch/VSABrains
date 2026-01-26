@@ -1,1 +1,213 @@
-Hello world!
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>VSABrains - Discrete CPU-First Learning Architecture</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/site.css">
+  </head>
+  <body>
+    <div class="site">
+      <header class="header">
+        <div class="brand">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M12 2v4m0 12v4M2 12h4m12 0h4"/>
+            <path d="M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/>
+          </svg>
+          VSABrains
+        </div>
+        <nav class="nav">
+          <a href="index.html">Home</a>
+          <a href="specs-viewer.html?doc=specs/DS001-Vision.md">Vision</a>
+          <a href="specs-viewer.html?doc=specs/DS002-Plan.md">Plan</a>
+          <a href="specs-viewer.html?doc=specs/DS003-Eval.md">Evaluation</a>
+        </nav>
+      </header>
+      
+      <main class="main content">
+        <div class="hero">
+          <h1 class="hero-title">VSABrains</h1>
+          <p class="hero-subtitle">
+            A discrete, CPU-first learning architecture inspired by <em>A Thousand Brains</em> (Hawkins et al.). 
+            Demonstrating that robust intelligence can emerge from parallel models operating in reference frames, 
+            achieving consensus through voting mechanisms.
+          </p>
+        </div>
+
+        <div class="section">
+          <h2>Design Specifications</h2>
+          <p>
+            The project is documented through three design specifications that cover architecture, 
+            implementation, and evaluation. Each specification builds on the core insight: 
+            <strong>order as address, not superposition</strong>.
+          </p>
+          <div class="link-grid">
+            <a href="specs-viewer.html?doc=specs/DS001-Vision.md" class="card">
+              <div class="card-title">DS001 - Vision</div>
+              <div class="card-note">
+                Architecture overview and core mechanisms. Why addressable memory avoids the 
+                "muddiness" problem of global superposition schemes.
+              </div>
+            </a>
+            <a href="specs-viewer.html?doc=specs/DS002-Plan.md" class="card">
+              <div class="card-title">DS002 - Implementation Plan</div>
+              <div class="card-note">
+                Module specifications, API contracts, testing strategy. ES modules with 
+                async/await patterns.
+              </div>
+            </a>
+            <a href="specs-viewer.html?doc=specs/DS003-Eval.md" class="card">
+              <div class="card-title">DS003 - Evaluation Framework</div>
+              <div class="card-note">
+                Three experimental suites with metrics and success criteria for validating 
+                the architecture.
+              </div>
+            </a>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2>Core Principles</h2>
+          <p>
+            The architecture is built on four foundational principles that distinguish it from 
+            traditional approaches like VSA (Vector Symbolic Architectures) or dense neural networks.
+          </p>
+          <div class="link-grid">
+            <div class="card">
+              <div class="card-title">Order as Address</div>
+              <div class="card-note">
+                Temporal order is encoded as location in memory, not superposed content. 
+                Events are written along trajectories, making retrieval deterministic.
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-title">Multi-Column Consensus</div>
+              <div class="card-note">
+                Multiple parallel columns provide redundancy and multi-hypothesis tracking. 
+                Under ambiguity, consensus selects the most supported interpretation.
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-title">Addressable Memory</div>
+              <div class="card-note">
+                Episodic store with indexed retrieval enables long-context without keeping 
+                everything in RAM. Checkpoints enable replay-based verification.
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-title">Verifiable Reasoning</div>
+              <div class="card-note">
+                Every proposition traces to source facts. Outputs explicit verdicts: 
+                <code>supported</code>, <code>conflicting</code>, or <code>unsupported</code>.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2>Evaluation Experiments</h2>
+          <p>
+            Three experiments validate core hypotheses. Each targets a specific architectural 
+            claim and provides quantitative success criteria.
+          </p>
+          
+          <div class="link-grid">
+            <div class="card">
+              <div class="card-title">Exp 1: Reference-Frame Alignment</div>
+              <div class="card-note">
+                Validates multi-column consensus under partial observability, noise, and 
+                ambiguous contexts. Target: consensus accuracy exceeds single column by 5%+.
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-title">Exp 2: Narrative Coherence</div>
+              <div class="card-note">
+                Tests state tracking with coreference, scene resets, and repetitive motifs. 
+                Target: graceful degradation, not catastrophic collapse.
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-title">Exp 3: Grounded RAG</div>
+              <div class="card-note">
+                Validates anti-hallucination: correct answers with evidence, refusal for 
+                unsupported queries, explicit conflict detection. Target: &lt;5% hallucination.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2>Project Structure</h2>
+          <p>
+            The implementation follows a modular architecture with clear separation between 
+            core logic, memory systems, reasoning, and evaluation.
+          </p>
+          <div class="diagram">
+            <pre><code>VSABrains/
+├── src/                    Core implementation (ES modules, .mjs)
+│   ├── core/               HeavyHitters, GridMap, Column, Displacement
+│   ├── memory/             EpisodicStore, Index, Checkpoint
+│   ├── localization/       Localizer, Verifier, Replay
+│   ├── consensus/          Voter, Aggregator
+│   ├── reasoning/          WorkSignature, Workpad, Generator, Reasoner
+│   ├── facts/              FactSchema, FactStore, FactExtractor
+│   └── control/            Controller, MetaController
+├── test/                   Unit tests (one per module)
+├── eval/                   Evaluation suites
+│   ├── exp1-alignment/     Reference-frame alignment
+│   ├── exp2-narrative/     State tracking + coherence
+│   └── exp3-rag/           Grounded RAG with verdicts
+└── docs/                   Documentation + specifications</code></pre>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2>Inspiration</h2>
+          <p>
+            The architecture draws from Jeff Hawkins' <em>A Thousand Brains</em> theory, 
+            operationalizing key concepts into discrete, auditable mechanisms:
+          </p>
+          <div class="link-grid">
+            <div class="card">
+              <div class="card-title">Reference Frames</div>
+              <div class="card-note">
+                Internal location state on discrete GridMaps. Each column maintains its 
+                own coordinate system.
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-title">Movement Signals</div>
+              <div class="card-note">
+                Deterministic displacement updates location at each step, transforming 
+                temporal order into spatial trajectory.
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-title">Parallel Models</div>
+              <div class="card-note">
+                Multiple columns with different offsets provide redundancy and enable 
+                robust interpretation under ambiguity.
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-title">Voting Consensus</div>
+              <div class="card-note">
+                Weighted aggregation across column predictions. The ensemble outperforms 
+                any individual column.
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+      
+      <footer class="footer">
+        VSABrains is an experimental project exploring discrete, CPU-first learning architectures. 
+        All code and documentation in English.
+      </footer>
+    </div>
+  </body>
+</html>
