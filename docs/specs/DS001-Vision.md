@@ -6,6 +6,19 @@
 
 ---
 
+## Reading Order for Implementers
+
+This project is designed to be implementable by a Node.js engineer without ML background, but the **reading order matters**.
+
+Recommended order:
+
+1. **DS001:** read §3 (Architecture Overview) + §4 (Glossary) first (skip §2 unless you want the rationale).
+2. **DS004:** core runtime algorithms (keep it open while coding).
+3. **DS002b:** implementation guide (phases, entry points, end-to-end examples).
+4. **DS002a:** API reference while implementing modules under `src/`.
+5. **DS003:** experiments + success criteria (what “working” means).
+6. **DS005:** integrations (LLM extraction, validation, retrieval/derivation/conflict rules, answer contract) when implementing Exp3.
+
 ## 1. Executive Summary
 
 This document describes the architectural vision for VSABrains: a discrete, CPU-first learning system inspired by *A Thousand Brains* (Hawkins et al.). The goal is to demonstrate that robust intelligence can emerge from parallel models operating in reference frames, achieving consensus through voting, without requiring GPU-accelerated dense neural networks.
@@ -86,7 +99,11 @@ This architectural choice makes verification powerful: verdicts (`supported`/`co
 To keep specs smaller and easier to implement, detailed specifications are split into:
 
 - [DS004 - Core Algorithms and Data Structures](DS004-Algorithms-and-Data-Structures.md): the discrete runtime (steps, `GridMap`s, displacement, localization, replay/checkpoints, reasoning primitives, diagnostics).
-- [DS005 - Integrations and Non-Core Implementation](DS005-Integrations-and-Non-Core.md): text ingestion, LLM-backed extraction, fact validation, and the verifiable answer contract.
+- [DS005 - Integrations and Non-Core Implementation](DS005-Integrations-and-Non-Core.md): text ingestion, LLM-backed extraction, fact validation, retrieval/derivation/conflict rules, and the verifiable answer contract.
+- [DS003 - Evaluation Framework](DS003-Eval.md): experiment definitions, datasets, metrics, and success criteria (what “working” means).
+- DS002 is split into:
+  - `DS002b-Implementation-Guide.md`: phases, wiring, end-to-end examples, and milestones.
+  - `DS002a-API-Reference.md`: file-level module APIs to implement under `src/`.
 
 If you are implementing the system, start with DS004 (core runtime), then DS005 (optional integrations).
 
@@ -102,7 +119,7 @@ When a term has important implementation details, the entry includes a reference
 
 A deterministic integer used to represent a discrete symbol (word token, entity ID, predicate ID, summary token, etc.).
 
-Implementation: DS004 §3 (data model), DS002 `util/Vocabulary.mjs`, DS002 `util/Tokenizer.mjs`.
+Implementation: DS004 §3 (data model), DS002a (`util/Vocabulary.mjs`, `util/Tokenizer.mjs`).
 
 #### Step Token ID (`stepTokenId`)
 
@@ -128,11 +145,22 @@ Implementation: DS004 §3.3 and DS004 §6 (localization).
 
 #### Heavy-Hitters
 
-A streaming algorithm that keeps an approximate (or exact, depending on implementation) **top-K** set of most frequent items seen so far, using bounded memory.
+A streaming algorithm that keeps a bounded **top-K** set of most frequent items seen so far, using bounded memory.
 
 In VSABrains, each grid cell maintains a heavy-hitters summary of token IDs to prevent local “muddiness” (cell saturation).
 
-Implementation: DS004 §4 (`GridMap` + heavy-hitters cells), DS002 `core/HeavyHitters.mjs`.
+Implementer intuition:
+- Think “**LFU cache** for a stream”: each cell can only remember K token IDs; each write increments a counter; when full, the least-important item is evicted.
+- This prevents a single cell from accumulating an unbounded bag of tokens, which would destroy retrieval quality.
+
+Example (K=4):
+
+```text
+stream: [A, B, A, C, A, D, E, A]
+top-4:  [(A,4), (B,1), (C,1), (D,1)]  // E is evicted at capacity
+```
+
+Implementation: DS004 §4 (`GridMap` + heavy-hitters cells), DS002a `core/HeavyHitters.mjs`.
 
 #### Toroidal Topology (“Pac-Man wrap”)
 
@@ -141,6 +169,10 @@ A grid topology where moving past an edge wraps around to the opposite edge:
 - `y = wrap(y + dy, height)`
 
 This avoids edge effects and keeps movement rules uniform.
+
+Implementer intuition:
+- Wrapping avoids “edge bugs”: with clamping, trajectories can stick to borders and distort localization statistics.
+- Wrapping makes displacement behavior location-independent (same rules everywhere), which simplifies debugging and analysis.
 
 Implementation: DS004 §5.2 (wrapping), DS004 §2.1 (`stepMove`).
 
@@ -158,7 +190,22 @@ An explicit role→value map used for auditable reasoning.
 
 Analogy: a JavaScript `Map` (or plain object) that binds roles like `subject`, `predicate`, `object` to concrete values, optionally including variables for pattern matching.
 
-Implementation: DS004 §8 (reasoning primitives), DS002 `reasoning/WorkSignature.mjs`.
+Implementer intuition:
+- It is *not* just an object because we need: deterministic hashing/canonicalization, explicit variable tracking, conflict-checked merges, and pattern matching (“unification”).
+- Using a dedicated structure makes reasoning auditable and testable (you can inspect exactly what is bound to what).
+
+Implementation: DS004 §8 (reasoning primitives), DS002a `reasoning/WorkSignature.mjs`.
+
+#### Reference Frame Alignment
+
+In this project, a “reference frame” is the internal coordinate system of a column’s maps (different columns have different seeds/offsets).
+
+“Alignment” is the practical problem: given a recent window of step tokens, **find the most likely current location** in that column’s grid (like “where am I?”).
+
+Implementer intuition:
+- Think “GPS localization”: the window is your observation; `LocationIndex` is a fast lookup of plausible places; replay verification checks whether the implied trajectory actually matches what’s stored.
+
+Implementation: DS004 §6 (localization), DS003 Exp1/Exp2.
 
 ## 5. Success Criteria
 

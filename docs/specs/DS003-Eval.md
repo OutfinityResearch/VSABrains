@@ -102,6 +102,24 @@ Before running the full Exp1 suite, run a small clean scenario and require:
 - **Loc@5 ≥ 70%** on clean sequences (window=5, no noise).
 - **No capacity collapse**: `cellSaturation` stays below 0.8.
 
+Recommended smoke configuration (baseline):
+
+```javascript
+const smokeConfig = {
+  windowSize: 5,
+  vocabSize: 100,
+  seqLength: 200,
+  noiseRate: 0,
+  numTrials: 10,
+  brainConfig: {
+    numColumns: 1,
+    gridSize: 64,
+    k: 4,
+    displacement: { contextLength: 2, maxStep: 3, seed: 0 },
+  },
+};
+```
+
 If the smoke test fails, treat the issue as foundational (displacement, indexing, or replay verification) rather than “tuning”.
 
 ### 2.6 Implementation
@@ -267,20 +285,39 @@ export function makeExp2Vocabulary() {
   return new Vocabulary({ mode: 'dynamic', maxSize: 100000 });
 }
 
-export function eventToTokens(event, vocab) {
+export function makeCorefState() {
+  return { lastEntityId: null };
+}
+
+function resolveSubjectEntityId(event, corefState) {
+  if (event.subject !== 'P') return event.subject;
+  // Prefer generator-provided resolution, otherwise fall back to the running coref state.
+  const resolved = event.resolvedSubject ?? corefState.lastEntityId;
+  if (!resolved) {
+    throw new Error('Coreference failed: subject="P" but no resolvedSubject and corefState.lastEntityId is null');
+  }
+  return resolved;
+}
+
+export function eventToTokens(event, vocab, corefState) {
   // Keep namespaces explicit to avoid accidental collisions.
   if (event.action === 'SCENE_RESET') {
+    corefState.lastEntityId = null;
     return [vocab.id('EV:scene_reset')];
   }
 
-  const subject = vocab.id(`S:${event.subject}`); // may be "P" for pronouns
+  // Coreference is resolved at encoding time for Exp2.
+  const subjectEntityId = resolveSubjectEntityId(event, corefState);
+  corefState.lastEntityId = subjectEntityId;
+
+  const subject = vocab.id(`S:${subjectEntityId}`);
   const predicate = vocab.id(`P:${event.action}`);
   const object = event.object == null ? vocab.id('O:∅') : vocab.id(`O:${event.object}`);
   return [subject, predicate, object];
 }
 
-export function eventToStepInput(event, vocab) {
-  const writeTokenIds = eventToTokens(event, vocab);
+export function eventToStepInput(event, vocab, corefState) {
+  const writeTokenIds = eventToTokens(event, vocab, corefState);
   const stepTokenId = hashCombineU32(writeTokenIds);
   return { stepTokenId, writeTokenIds, event };
 }
@@ -290,6 +327,13 @@ export function queryToQuestion(q) {
   return `STATE? time=${q.time} entity=${q.entity} attribute=${q.attribute}`;
 }
 ```
+
+Coreference resolution for Exp2 is handled at encoding time:
+1. `encoding.mjs` maintains a `corefState` with `lastEntityId`.
+2. When `event.subject === 'P'`, resolve to `event.resolvedSubject` (preferred) or `corefState.lastEntityId`.
+3. After encoding a non-reset event, update `corefState.lastEntityId` to the resolved subject.
+4. `SCENE_RESET` clears `corefState.lastEntityId`.
+5. Canonical approach: store `resolvedSubject` in the event stream so replay remains deterministic without additional state. Persist `corefState` in checkpoints only for legacy/raw events that do not store resolution.
 
 ### 3.5 Metrics
 
@@ -309,6 +353,30 @@ export function queryToQuestion(q) {
 
 For Exp2, verifier rules are hardcoded narrative constraints (auditable, domain-specific). Define them explicitly in `eval/exp2-narrative/rules.mjs` and pass them into `Verifier`.
 
+Rule contract (recommended):
+
+```javascript
+// Minimal state shape used by Exp2 rules (extend as needed):
+// {
+//   entities: { [entityId]: { alive?: boolean, location?: string|null, inventory?: string[] } },
+//   items?: { [itemId]: { heldBy?: string|null } },
+// }
+//
+// prev/next are state snapshots produced by replay. Keep them explicit and testable.
+// Returns: { valid: boolean, reason?: string }
+export const ruleContract = {
+  name: 'string',
+  check(prev, event, next) {
+    return { valid: true };
+  },
+};
+```
+
+When rules run (baseline):
+- Replay computes `next` from `prev + event`.
+- `Verifier` applies all rules to `(prev, event, next)`.
+- If any rule returns `{ valid: false }`, the transition is invalid and should be surfaced as a conflict (for Exp2: fail the query or mark the run as inconsistent).
+
 Minimal rule set (recommended):
 - **Dead entity cannot act:** if `alive=false`, then `move/pick/drop` is invalid unless the action is `REVIVE`.
 - **Unique item ownership:** an item cannot be held by two entities at the same time.
@@ -319,10 +387,22 @@ Minimal rule set (recommended):
 // eval/exp2-narrative/rules.mjs
 
 export const transitionRules = [
-  { name: 'dead_cannot_act', check(prev, event, next) {} },
-  { name: 'unique_item_ownership', check(prev, event, next) {} },
-  { name: 'pick_drop_consistency', check(prev, event, next) {} },
-  { name: 'scene_reset_clears_coref', check(prev, event, next) {} },
+  {
+    name: 'dead_cannot_act',
+    check(prev, event, next) {
+      const subject = event.resolvedSubject ?? event.subject;
+      const alive = prev.entities?.[subject]?.alive ?? true;
+      const action = event.action;
+      const isAct = ['move', 'pick', 'drop', 'MOVE', 'PICK', 'DROP'].includes(action);
+      if (alive === false && isAct && action !== 'REVIVE') {
+        return { valid: false, reason: `${subject} is dead and cannot ${action}` };
+      }
+      return { valid: true };
+    },
+  },
+  { name: 'unique_item_ownership', check(prev, event, next) { return { valid: true }; } },
+  { name: 'pick_drop_consistency', check(prev, event, next) { return { valid: true }; } },
+  { name: 'scene_reset_clears_coref', check(prev, event, next) { return { valid: true }; } },
 ];
 ```
 
@@ -333,7 +413,7 @@ export const transitionRules = [
 
 import { VSABrains } from '../../src/index.mjs';
 import { generateStory, generateQueries } from './stories.mjs';
-import { makeExp2Vocabulary, eventToStepInput, queryToQuestion } from './encoding.mjs';
+import { makeExp2Vocabulary, makeCorefState, eventToStepInput, queryToQuestion } from './encoding.mjs';
 import { Metrics } from '../common/Metrics.mjs';
 import { Reporter } from '../common/Reporter.mjs';
 
@@ -357,12 +437,13 @@ async function runLengthSweep(config, lengths) {
   for (const length of lengths) {
     const story = generateStory({ ...config.storyConfig, numEvents: length });
     const queries = generateQueries(story, config.numQueries);
+    const corefState = makeCorefState();
     
     const brain = new VSABrains(config.brainConfig);
     
     // Ingest story
     for (const event of story.events) {
-      await brain.step(eventToStepInput(event, vocab));
+      await brain.step(eventToStepInput(event, vocab, corefState));
     }
     
     // Answer queries
@@ -764,7 +845,7 @@ The experiment succeeds if:
 - [ ] Conflict detection recall > 80%
 - [ ] Multi-hop chain correctness > 90%
 - [ ] Overall hallucination rate < 5%
-- [ ] Extraction consistency (Jaccard) >= 0.8 when extractor enabled
+- [ ] Extraction consistency (Jaccard) >= 0.8 when extractor enabled (otherwise the configuration fails; run a gold/manual-facts baseline separately)
 - [ ] Predicate coverage = 100% (no out-of-vocabulary predicates)
 - [ ] All answers satisfy output contract
 

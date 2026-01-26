@@ -54,6 +54,6 @@ docs/specs/    - Design specifications (DS001, DS002, DS003, ...)
 - Consult `docs/specs/DS001-Vision.md` for architectural rationale
 - Consult the glossary section in `docs/specs/DS001-Vision.md` for shared terminology
 - Consult `docs/specs/DS004-Algorithms-and-Data-Structures.md` for concrete algorithm/data-structure specifications
-- Consult `docs/specs/DS005-Integrations-and-Non-Core.md` for text/LLM integration and answer-contract details
-- Follow the implementation plan in `docs/specs/DS002-Plan.md`
+- Consult `docs/specs/DS005-Integrations-and-Non-Core.md` for text/LLM integration, retrieval/derivation/conflict rules, and answer-contract details
+- Use `docs/specs/DS002-Plan.md` as the DS002 index, then follow `docs/specs/DS002b-Implementation-Guide.md` and `docs/specs/DS002a-API-Reference.md`
 - Ensure changes don't break evaluation criteria in `docs/specs/DS003-Eval.md`
