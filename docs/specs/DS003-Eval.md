@@ -126,14 +126,24 @@ export async function runExperiment1(config = {}) {
 }
 
 async function runScenarioA(config) {
-  const brain = new VSABrains(config.brainConfig);
   const testCases = [];
+
+  function packLocKey(x, y) {
+    return (((x & 0xffff) << 16) | (y & 0xffff)) >>> 0;
+  }
   
   for (let i = 0; i < config.numTrials; i++) {
+    // Baseline localization metrics are computed for a single column.
+    const brain = new VSABrains({ ...config.brainConfig, numColumns: 1 });
+    const writeLocKeys = [];
+
     const seq = generateCleanSequence(config.seqLength, config.vocabSize);
     
     // Train
     for (const token of seq.tokens) {
+      // Record the write location (location before stepMove).
+      const { x, y } = brain.getState().columns[0].location;
+      writeLocKeys.push(packLocKey(x, y));
       await brain.step(token);
     }
     
@@ -144,9 +154,10 @@ async function runScenarioA(config) {
       const candidates = await brain.localize(window);
       
       testCases.push({
-        groundTruth: pos,
-        top1: candidates[0]?.location,
-        topK: candidates.slice(0, 5).map(c => c.location),
+        // Compare packed locKeys for deterministic equality.
+        groundTruth: writeLocKeys[pos - 1],
+        top1: candidates[0]?.locKey,
+        topK: candidates.slice(0, 5).map(c => c.locKey),
         scores: candidates.slice(0, 5).map(c => c.score),
       });
     }
@@ -178,7 +189,7 @@ The experiment succeeds if:
 
 Validate that the system maintains coherent state tracking over long sequences with:
 - Entity state changes
-- Coreference (pronouns referring to previous entities)
+- Coreference (pronouns referring to previous entities; see DS000)
 - Scene resets (context changes)
 - Repetitive motifs (creating localization challenges)
 
@@ -242,7 +253,7 @@ Encode each event as:
 - `writeTokenIds`: a small bundle of discrete tokens written into the current cell
 - `stepTokenId`: a single primary token that drives displacement and localization
 
-If `stepTokenId` is not provided explicitly, it is derived deterministically as `hashCombineU32(writeTokenIds)` (see DS004 §3.3.1).
+If `stepTokenId` is not provided explicitly, it is derived deterministically as `hashCombineU32(writeTokenIds)` (see DS004 §3.2).
 
 Recommended helpers:
 
@@ -651,9 +662,9 @@ async function runCategory(brain, questions) {
       actual: {
         verdict: answer.verdict,
         answer: answer.text,
-        chunks: answer.chunks_used,
-        chain: answer.fact_chain,
-        scores: answer.support_scores,
+        chunks: answer.chunksUsed,
+        chain: answer.factChain,
+        scores: answer.supportScores,
       },
       correct: evaluateAnswer(q, answer),
     });
@@ -720,7 +731,7 @@ Every answer must include the required artifacts:
 
 ```javascript
 function validateOutputContract(answer) {
-  const required = ['text', 'chunks_used', 'fact_chain', 'support_scores', 'verdict'];
+  const required = ['text', 'chunksUsed', 'factChain', 'supportScores', 'verdict'];
   const missing = required.filter(field => !(field in answer));
   
   if (missing.length > 0) {
@@ -733,7 +744,7 @@ function validateOutputContract(answer) {
   }
   
   // Validate chain structure
-  if (answer.verdict === 'supported' && answer.fact_chain.length === 0) {
+  if (answer.verdict === 'supported' && answer.factChain.length === 0) {
     throw new Error('Supported verdict requires non-empty fact chain');
   }
   
@@ -769,6 +780,7 @@ The experiment succeeds if:
 export const Metrics = {
   // Localization metrics
   computeLocalization(testCases) {
+    // testCases groundTruth/topK/top1 are packed locKeys (uint32) for equality checks.
     const top1Acc = testCases.filter(t => t.top1 === t.groundTruth).length / testCases.length;
     const top5Acc = testCases.filter(t => t.topK.includes(t.groundTruth)).length / testCases.length;
     return { top1Acc, top5Acc };

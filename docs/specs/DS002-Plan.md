@@ -41,10 +41,12 @@ VSABrains/
 ├── docs/
 │   ├── index.html
 │   └── specs/
+│       ├── DS000-Glossary.md
 │       ├── DS001-Vision.md
 │       ├── DS002-Plan.md
 │       ├── DS003-Eval.md
-│       └── DS004-Algorithms-and-Data-Structures.md
+│       ├── DS004-Algorithms-and-Data-Structures.md
+│       └── DS005-Integrations-and-Non-Core.md
 ├── src/
 │   ├── index.mjs              # Main entry point, exports public API
 │   ├── core/
@@ -460,6 +462,22 @@ export class CheckpointManager {
 }
 ```
 
+Checkpoint state schema (recommended; see DS004 §7.1):
+
+```javascript
+const checkpointState = {
+  columns: [
+    {
+      id: 'primary',
+      location: { x: 10, y: 22 },
+      displacementBuffer: [111, 222], // last N stepTokenIds
+    },
+  ],
+  workpad: { bindings: [['?x', 'S:Alice']] }, // optional
+  corefState: { lastEntityId: 'S:Alice' },    // optional
+};
+```
+
 #### 3.2.4 Summary.mjs
 
 ```javascript
@@ -542,8 +560,11 @@ export class Localizer {
     minMatchesRatio: 0.6,
     debug: false,
   });
+  // Candidates use the DS004 "LocalizationCandidate" shape:
+  // { columnId, locKey, location: { x, y }, score, matches, lastSeenMax, verifiedScore? }
+  //
   // If config.debug is true, return:
-  // { candidates: [{ columnId, x, y, score, ... }...], stats: { perTokenCandidates: number[], anchorIdx: number, scoredLocations: number } }
+  // { candidates: LocalizationCandidate[], stats: { perTokenCandidates: number[], anchorIdx: number, scoredLocations: number } }
   
   /** Score candidates by replay consistency */
   async scoreWithReplay(candidates, windowStepTokens, verifier);
@@ -787,9 +808,23 @@ export class FactStore {
  * LLM-based fact extraction wrapper.
  */
 export class FactExtractor {
+  /**
+   * Provider-agnostic LLM client interface (see DS005).
+   *
+   * @typedef {{
+   *   complete: (prompt: string, options?: {
+   *     model?: string,
+   *     temperature?: number,
+   *     seed?: number,
+   *     responseFormat?: 'json' | 'text',
+   *     maxTokens?: number,
+   *   }) => Promise<{ content: string }>
+   * }} LLMClient
+   */
+  
   constructor(config = {
     // Provider-agnostic LLM client (OpenAI/Anthropic/local/etc).
-    // Must expose a single method that returns parsed JSON or throws.
+    // Must implement LLMClient.complete() and return raw string content (parsing/validation happens here).
     llmClient: null,
     model: 'gpt-4.1',
     temperature: 0,
@@ -847,7 +882,7 @@ export class Controller {
 export class MetaController {
   constructor(controller, config);
   
-  /** Select regime based on metrics (see DS004 §8.4 for baseline regimes) */
+  /** Select regime based on metrics (see DS004: "Multi-Column Consensus and Regimes") */
   selectRegime(metrics);
   
   /** Register new theory/regime */
@@ -902,6 +937,48 @@ export class VSABrains {
   async save(path);
   static async load(path);
 }
+```
+
+#### 3.8.2 Entry Points and Responsibilities
+
+| Method | When to use | What it does (internally) |
+|--------|-------------|---------------------------|
+| `VSABrains.ingest(text, metadata)` | Natural-language / document ingestion | Chunk → tokenize and/or extract facts (DS005) → validate → `step(...)` loop |
+| `VSABrains.step(input)` | Discrete events or token IDs (Exp1/Exp2) | Normalize → `Controller.step(input)` |
+| `Controller.step(input)` | Internal orchestration | Normalize → `Column.stepWrite(...)` → displacement → `Column.stepMove(...)` |
+| `Column.stepWrite(stepInput)` | Internal column write stage | Write tokens → update `LocationIndex` → append episode/fact (optional) |
+| `Column.stepMove({dx, dy})` | Internal column move stage | Update column location with wrap |
+
+#### 3.8.3 End-to-End Example (Happy Path)
+
+Minimal discrete ingestion (Exp1/Exp2 style):
+
+```javascript
+const brain = new VSABrains(config);
+
+// Tokenizer.encode(text) returns TokenId[] (numbers).
+const tokens = brain.tokenizer.encode('Alice enters room_A. Bob picks up the key.');
+
+for (const tokenId of tokens) {
+  // step(tokenId) normalizes to { stepTokenId: tokenId, writeTokenIds: [tokenId] }
+  // then runs: stepWrite → displacement → stepMove.
+  await brain.step(tokenId);
+}
+
+// Query-time is: localize → replay → reasoner → verdict.
+const result = await brain.answer('Where is Alice?');
+```
+
+Document ingestion with verifiable facts (Exp3 style):
+
+```javascript
+const brain = new VSABrains({
+  ...config,
+  extractor: { enabled: true }, // see DS005
+});
+
+await brain.ingest('Alice enters room_A. Bob picks up the key.', { docId: 'demo' });
+const result = await brain.answer('Where is Alice?');
 ```
 
 ---
