@@ -148,6 +148,25 @@
           </table>
           <p class="note">Last run: 2026-01-27T12:06:26Z. Noise rate 0.25, window size 6, columns 5, baselineMatchThreshold=6 (exact match).</p>
           <p class="note">Storage numbers are conservative lower bounds (fixed-width assumptions only). The baseline uses a strict exact-match scan; consensus uses noisy windows per column.</p>
+          <h3>Consensus Sweep (Columns × Noise)</h3>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Noise</th>
+                <th>Cols=1 Acc</th>
+                <th>Cols=5 Acc</th>
+                <th>Cols=5 Gain</th>
+                <th>Cols=9 Acc</th>
+                <th>Cols=9 Gain</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>0.15</td><td>0.939</td><td>0.997</td><td>+0.146</td><td>1.000</td><td>+0.151</td></tr>
+              <tr><td>0.25</td><td>0.901</td><td>0.992</td><td>+0.224</td><td>1.000</td><td>+0.276</td></tr>
+              <tr><td>0.35</td><td>0.852</td><td>0.976</td><td>+0.335</td><td>1.000</td><td>+0.312</td></tr>
+            </tbody>
+          </table>
+          <p class="note">Sweep run: 2026-01-27T12:35:12Z. See eval/exp4-consensus/sweep.mjs for configuration.</p>
         </div>
 
         <div class="section">

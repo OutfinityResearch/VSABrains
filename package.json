@@ -10,6 +10,7 @@
     "eval:exp2": "node eval/exp2-narrative/run.mjs",
     "eval:exp3": "node eval/exp3-rag/run.mjs",
     "eval:exp4": "node eval/exp4-consensus/run.mjs",
+    "eval:exp4:sweep": "node eval/exp4-consensus/sweep.mjs",
     "eval:all": "npm run eval:exp1 && npm run eval:exp2 && npm run eval:exp3 && npm run eval:exp4"
   },
   "devDependencies": {}
