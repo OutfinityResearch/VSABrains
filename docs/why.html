@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Why VSABrains?</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/site.css">
+  </head>
+  <body>
+    <div class="site">
+      <header class="header">
+        <a class="brand" href="index.html" aria-label="VSABrains home">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M12 2v4m0 12v4M2 12h4m12 0h4"/>
+            <path d="M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/>
+          </svg>
+          <span>VSABrains</span>
+        </a>
+      </header>
+
+      <main class="main content">
+        <div class="section">
+          <h1>Why VSABrains?</h1>
+          <p>
+            VSABrains is built to make temporal order auditable and robust under noise.
+            It encodes order as spatial address (trajectories in discrete maps), then uses
+            multi-column consensus to reduce ambiguity. This page answers common questions
+            and clarifies what the architecture does and does not claim.
+          </p>
+        </div>
+
+        <div class="section">
+          <h2>Is this still VSA? Is there holography?</h2>
+          <p>
+            It is <strong>inspired</strong> by VSA ideas (symbol composition, binding, and distributed
+            representations) but it is not a holographic VSA system. VSABrains does not rely on
+            dense superposition to represent long sequences. Instead, it uses discrete maps and
+            heavy-hitters to keep top-K tokens per cell, which is sparse and auditable.
+          </p>
+          <p>
+            So: <strong>no holography claim</strong>. The architecture is a different tradeoff:
+            discrete, CPU-friendly, and traceable, even if it sacrifices some of the
+            smooth algebra of classic VSA.
+          </p>
+        </div>
+
+        <div class="section">
+          <h2>Is the meaning of a story its final point?</h2>
+          <p>
+            No. The final location is not the “meaning.” It is just the end of a trajectory.
+            The point of VSABrains is that the <strong>path</strong> is written into memory as a sequence
+            of locations. Meaning comes from replay and evidence chains, not from a single endpoint.
+          </p>
+        </div>
+
+        <div class="section">
+          <h2>Can we reconstruct the path from the final point?</h2>
+          <p>
+            Not from the final point alone. A single endpoint does not encode the full path.
+            Path reconstruction is done through:
+          </p>
+          <ul>
+            <li><strong>Replay</strong> from checkpoints and the episodic store.</li>
+            <li><strong>Localization</strong> using recent token windows (fast maps + location index).</li>
+            <li><strong>Slow maps</strong> as coarse summaries for long horizons (approximate).</li>
+          </ul>
+          <p>
+            This is a deliberate design: store enough structure to replay deterministically,
+            and avoid pretending that a final point contains all history.
+          </p>
+        </div>
+
+        <div class="section">
+          <h2>Can we compress columns and still reconstruct paths?</h2>
+          <p>
+            Yes, but only approximately. The system already supports compression via
+            <strong>checkpointing</strong> (store partial state) and <strong>slow-map summaries</strong>
+            (store coarse tokens for older history). This enables approximate reconstruction
+            without retaining every detail.
+          </p>
+          <p>
+            If perfect replay is required, you must keep the full episodic stream. If
+            approximate replay is acceptable, checkpoints + slow maps can reduce storage
+            at the cost of fidelity.
+          </p>
+        </div>
+
+        <div class="section">
+          <h2>Why not just keep a list of events?</h2>
+          <p>
+            A pure list is strong for small data, but it has tradeoffs:
+          </p>
+          <ul>
+            <li><strong>Scaling:</strong> retrieval is linear unless you build separate indexes.</li>
+            <li><strong>Noise:</strong> a single stream offers no multi-view consensus.</li>
+            <li><strong>Ambiguity:</strong> a list has no native mechanism to maintain parallel hypotheses.</li>
+            <li><strong>Auditability:</strong> you still need explicit checks for conflicts, otherwise
+              you return inconsistent answers without warning.</li>
+          </ul>
+          <p>
+            VSABrains makes these behaviors explicit: spatial indexing for fast localization,
+            multi-column consensus for robustness, and replay + verifiers for auditable answers.
+          </p>
+        </div>
+
+        <div class="section">
+          <h2>Where is the evidence?</h2>
+          <p>
+            See Experiment 4 in <code>eval/exp4-consensus</code>. It compares a single noisy stream
+            and a naive list-scan baseline against multi-column consensus under the same noise rate.
+            Consensus should yield higher accuracy and lower disagreement, while the list baseline
+            shows the cost of linear scanning.
+          </p>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

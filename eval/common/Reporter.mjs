@@ -102,6 +102,14 @@ export const Reporter = {
       }
     }
 
+    if (experimentName === 'exp4-consensus') {
+      const gain = results?.consensus?.consensusGainOverSingle ?? 0;
+      criteria.push({ criterion: 'consensusGainOverSingle', passed: gain > 0.05, actual: gain, target: 0.05 });
+
+      const baselineGain = results?.consensus?.consensusGainOverBaseline ?? 0;
+      criteria.push({ criterion: 'consensusGainOverBaseline', passed: baselineGain > 0.05, actual: baselineGain, target: 0.05 });
+    }
+
     return criteria;
   },
 

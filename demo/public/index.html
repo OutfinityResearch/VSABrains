@@ -20,99 +20,58 @@
           </div>
         </div>
         <div class="topbar-actions">
-          <button class="btn ghost" id="resetBtn">Reset Scene</button>
-          <button class="btn ghost" id="randomBtn">Add Random Event</button>
+          <button class="btn ghost" id="generateCleanBtn">Generate Clean Story</button>
+          <button class="btn primary" id="generateContradictBtn">Generate Contradicting Story</button>
+          <div class="append-mode">
+            <label for="appendMode">Append Mode</label>
+            <select id="appendMode">
+              <option value="consistent">Clean</option>
+              <option value="contradicting">Contradicting</option>
+            </select>
+          </div>
+          <button class="btn ghost" id="addHundredBtn">Add 100 Actions</button>
         </div>
       </header>
 
-      <main class="grid">
-        <section class="panel builder">
-          <h2>Story Builder</h2>
-          <p class="muted">Compose events. The system writes them into a spatial memory trajectory.</p>
-
-          <div class="field">
-            <label for="subjectSelect">Subject</label>
-            <select id="subjectSelect"></select>
-            <div class="hint">Choose a character or <span class="inline-tag">P</span> for coreference.</div>
-          </div>
-
-          <div class="field">
-            <label for="actionSelect">Action</label>
-            <select id="actionSelect"></select>
-          </div>
-
-          <div class="field" id="objectField">
-            <label for="objectSelect" id="objectLabel">Object</label>
-            <select id="objectSelect"></select>
-          </div>
-
-          <button class="btn primary" id="addEventBtn">Add Event</button>
-          <div class="status" id="statusMsg"></div>
-
-          <div class="divider"></div>
-
-          <h3>Telemetry</h3>
-          <div class="telemetry">
-            <div>
-              <span class="label">Step</span>
-              <span class="value" id="stepValue">0</span>
-            </div>
-            <div>
-              <span class="label">Agreement</span>
-              <span class="value" id="agreementValue">0.00</span>
-            </div>
-            <div>
-              <span class="label">Grid Util</span>
-              <span class="value" id="utilValue">0.00</span>
-            </div>
-            <div>
-              <span class="label">Cell Saturation</span>
-              <span class="value" id="satValue">0.00</span>
-            </div>
-            <div>
-              <span class="label">Localizer Top</span>
-              <span class="value" id="localizeValue">—</span>
-            </div>
-          </div>
-        </section>
-
+      <main class="grid simple">
         <section class="panel viz">
           <div class="viz-header">
             <h2>Memory Grid</h2>
-            <div class="legend">
-              <span class="legend-dot dot-1"></span> Column 1
-              <span class="legend-dot dot-2"></span> Column 2
-              <span class="legend-dot dot-3"></span> Column 3
+            <div class="tab-row">
+              <button class="tab-btn active" data-tab="grid">Grid</button>
+              <button class="tab-btn" data-tab="story">Story</button>
             </div>
           </div>
-          <div class="canvas-wrap">
+          <div class="canvas-wrap tab-panel" data-panel="grid">
             <canvas id="gridCanvas" width="640" height="640"></canvas>
           </div>
-          <div class="scrub">
-            <input type="range" id="scrubRange" min="0" max="0" value="0" />
-            <div class="scrub-labels">
-              <span id="scrubStart">0</span>
-              <span id="scrubEnd">0</span>
-            </div>
+          <div class="story-block tab-panel hidden" data-panel="story">
+            <label for="storyField">Story (Read-only)</label>
+            <textarea id="storyField" rows="18" readonly></textarea>
+          </div>
+          <div class="grid-meta">
+            <span id="stepValue">Step 0</span>
+            <span id="contradictionsValue">Contradictions: 0</span>
           </div>
         </section>
 
-        <section class="panel timeline">
-          <h2>Timeline</h2>
-          <ul id="timelineList"></ul>
-        </section>
-
-        <section class="panel query">
-          <h2>Query</h2>
-          <p class="muted">Ask about the current scene state. Answers are replayed from events.</p>
-
+        <section class="panel control">
+          <h2>Queries</h2>
+          <p class="muted">Try at least 10 query types to explore reasoning and contradictions.</p>
           <div class="field">
             <label for="queryType">Query Type</label>
             <select id="queryType">
-              <option value="where">Where is an entity?</option>
+              <option value="where">Where is an entity (latest)?</option>
+              <option value="whereAt">Where is an entity (at step)?</option>
+              <option value="entitiesAt">Who is in a location?</option>
               <option value="inventory">What does an entity have?</option>
               <option value="whoHas">Who has an item?</option>
-              <option value="alive">Is an entity alive?</option>
+              <option value="itemLocation">Where is an item?</option>
+              <option value="isAlive">Is an entity alive?</option>
+              <option value="lastEvent">Last event for entity</option>
+              <option value="timeline">Timeline for entity</option>
+              <option value="contradictions">All contradictions</option>
+              <option value="contradictionsFor">Contradictions for entity</option>
             </select>
           </div>
 
@@ -126,18 +85,29 @@
             <select id="queryItem"></select>
           </div>
 
-          <button class="btn primary" id="queryBtn">Run Query</button>
-
-          <div class="answer" id="answerBox">
-            <div class="answer-title">Answer</div>
-            <div class="answer-body" id="answerText">—</div>
-            <div class="answer-verdict" id="answerVerdict">—</div>
+          <div class="field" id="queryLocationField">
+            <label for="queryLocation">Location</label>
+            <select id="queryLocation"></select>
           </div>
 
-          <div class="evidence">
-            <div class="answer-title">Evidence Trail</div>
-            <ul id="evidenceList"></ul>
+          <div class="field" id="queryStepField">
+            <label for="queryStep">Step</label>
+            <input type="number" id="queryStep" min="0" placeholder="Latest" />
           </div>
+
+          <div class="field" id="queryLimitField">
+            <label for="queryLimit">Limit</label>
+            <input type="number" id="queryLimit" min="1" value="6" />
+          </div>
+
+          <button class="btn primary" id="runQueryBtn">Run Query</button>
+
+          <div class="story-block">
+            <label for="queryAnswer">Answer</label>
+            <textarea id="queryAnswer" rows="8" readonly></textarea>
+          </div>
+
+          <div class="status" id="statusMsg"></div>
         </section>
       </main>
     </div>
