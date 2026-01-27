@@ -17,8 +17,6 @@ const publicDir = path.join(__dirname, 'public');
 const PORT = Number(process.env.PORT ?? 8787);
 const DEFAULT_STORY_EVENTS = 1_000;
 const MAX_STORY_EVENTS = 10_000;
-const DEFAULT_PERF_RUNS = 500;
-const MAX_PERF_RUNS = 20_000;
 const MAX_COLUMNS = 9;
 
 const BASE_ENTITIES = ['Alice', 'Bob', 'Charlie', 'Dana', 'Eli', 'Mara', 'Nora', 'Iris'];
@@ -479,152 +477,110 @@ function parseTargetStep(session, stepValue) {
   return Math.max(0, Math.min(Math.floor(numeric), session.history.length - 1));
 }
 
-function packLocKey(x, y) {
-  return (((x & 0xffff) << 16) | (y & 0xffff)) >>> 0;
-}
-
-function corruptWindow(session, windowTokens, rng, noiseRate) {
-  const maxId = Math.max(6, session.vocab?.nextId ?? 6);
-  return windowTokens.map((tokenId) => {
-    if (rng() >= noiseRate) return tokenId;
-    const span = Math.max(1, maxId - 4);
-    return 4 + Math.floor(rng() * span);
-  });
-}
-
-function naiveListLocalize(list, windowTokens) {
-  let bestIndex = 0;
-  let bestScore = -1;
-  let comparisons = 0;
-  const limit = Math.max(0, list.length - windowTokens.length);
-  for (let i = 0; i <= limit; i += 1) {
-    let score = 0;
-    for (let j = 0; j < windowTokens.length; j += 1) {
-      comparisons += 1;
-      if (list[i + j] === windowTokens[j]) score += 1;
-    }
-    if (score > bestScore || (score === bestScore && i > bestIndex)) {
-      bestScore = score;
-      bestIndex = i;
-    }
-  }
-  return { bestIndex, bestScore, comparisons };
-}
-
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
-function computeLocalizationMetrics(session, targetStep, payload) {
-  if (!session.history.length || !session.stepTokens.length) return null;
+const STATE_BASED_TYPES = new Set([
+  'where',
+  'whereAt',
+  'entitiesAt',
+  'inventory',
+  'whoHas',
+  'itemLocation',
+  'isAlive'
+]);
 
-  const windowSizeRaw = Number(payload.windowSize ?? 6);
-  const windowSize = clamp(Number.isFinite(windowSizeRaw) ? windowSizeRaw : 6, 4, 12);
-  if (targetStep < windowSize - 1) {
-    return {
-      windowSize,
-      noiseRate: payload.noiseRate ?? 0.25,
-      note: `Need at least ${windowSize} steps for localization metrics.`
-    };
+function isStateBasedQuery(type) {
+  return STATE_BASED_TYPES.has(type);
+}
+
+function naiveReplayToStep(session, targetStep) {
+  const state = initStoryState(session);
+  if (session.history.length === 0) return state;
+  const limit = clamp(targetStep, 0, session.history.length - 1);
+  for (let i = 0; i <= limit; i += 1) {
+    applyEventToState(state, session.history[i].event);
+  }
+  return state;
+}
+
+function answerFromState(state, payload) {
+  const type = payload.type;
+  const entity = payload.entity;
+  const item = payload.item;
+  const location = payload.location;
+
+  if (type === 'where' || type === 'whereAt') {
+    return state.entities[entity]?.location ?? null;
   }
 
-  const noiseRaw = Number(payload.noiseRate ?? 0.25);
-  const noiseRate = clamp(Number.isFinite(noiseRaw) ? noiseRaw : 0.25, 0, 0.6);
-  const windowStart = targetStep - windowSize + 1;
-  const cleanWindow = session.stepTokens.slice(windowStart, targetStep + 1);
-  const list = session.stepTokens.slice(0, targetStep + 1);
-
-  const rng = makeRng(targetStep * 2654435761);
-  const noisyWindow = corruptWindow(session, cleanWindow, rng, noiseRate);
-
-  const perfRunsRaw = Number(payload.perfRuns ?? DEFAULT_PERF_RUNS);
-  const perfRuns = clamp(
-    Number.isFinite(perfRunsRaw) ? Math.floor(perfRunsRaw) : DEFAULT_PERF_RUNS,
-    1,
-    MAX_PERF_RUNS
-  );
-
-  const targetLoc = session.history[targetStep]?.locations?.[0];
-  const targetLocKey = targetLoc ? packLocKey(targetLoc.x, targetLoc.y) : null;
-
-  const localizeOnce = (debug) => {
-    const votes = [];
-    let scoredLocationsSum = 0;
-    let perTokenCandidatesSum = 0;
-    let columnsUsed = 0;
-    for (const column of session.brain.columns) {
-      const result = session.brain.localizer._localizeColumn(
-        noisyWindow,
-        column,
-        5,
-        { ...(session.currentConfig.localization ?? {}), debug }
-      );
-      const candidates = result.candidates ?? [];
-      const top1 = candidates[0];
-      if (top1?.locKey != null) {
-        votes.push({ value: top1.locKey, weight: top1.score ?? 1 });
-      }
-      if (debug) {
-        const perTokenCandidates = result.stats?.perTokenCandidates ?? [];
-        const perTokenMean = perTokenCandidates.length > 0
-          ? perTokenCandidates.reduce((sum, v) => sum + v, 0) / perTokenCandidates.length
-          : 0;
-        const scoredLocations = result.stats?.scoredLocations ?? candidates.length;
-        perTokenCandidatesSum += perTokenMean;
-        scoredLocationsSum += scoredLocations;
-        columnsUsed += 1;
-      }
-    }
-    const winner = votes.length > 0 ? session.brain.voter.vote(votes) : null;
-    const vsaPerTokenCandidates = columnsUsed > 0 ? perTokenCandidatesSum / columnsUsed : 0;
-    return {
-      winner,
-      vsaScoredLocations: scoredLocationsSum,
-      vsaPerTokenCandidates,
-    };
-  };
-
-  const debugRun = localizeOnce(true);
-  const winner = debugRun.winner;
-  const vsaScoredLocations = debugRun.vsaScoredLocations;
-  const vsaPerTokenCandidates = debugRun.vsaPerTokenCandidates;
-
-  const baseline = naiveListLocalize(list, noisyWindow);
-
-  const vsaStart = performance.now();
-  for (let i = 0; i < perfRuns; i += 1) {
-    localizeOnce(false);
+  if (type === 'entitiesAt') {
+    return Object.entries(state.entities)
+      .filter(([, data]) => data.location === location)
+      .map(([id]) => id)
+      .sort();
   }
-  const vsaTimeMs = performance.now() - vsaStart;
+
+  if (type === 'inventory') {
+    return [...(state.entities[entity]?.inventory ?? [])].sort();
+  }
+
+  if (type === 'whoHas') {
+    return state.items[item]?.heldBy ?? null;
+  }
+
+  if (type === 'itemLocation') {
+    const itemState = state.items[item];
+    if (!itemState) return null;
+    if (itemState.heldBy) return state.entities[itemState.heldBy]?.location ?? null;
+    return itemState.location ?? null;
+  }
+
+  if (type === 'isAlive') {
+    const alive = state.entities[entity]?.alive;
+    return alive === false ? false : true;
+  }
+
+  return null;
+}
+
+async function computePerformanceMetrics(session, targetStep, payload) {
+  if (!isStateBasedQuery(payload.type)) {
+    return { metrics: null, snapshot: stateAtStep(session, targetStep) };
+  }
 
   const naiveStart = performance.now();
-  for (let i = 0; i < perfRuns; i += 1) {
-    naiveListLocalize(list, noisyWindow);
-  }
+  const naiveState = naiveReplayToStep(session, targetStep);
   const naiveTimeMs = performance.now() - naiveStart;
-  const predictedStep = baseline.bestIndex + windowSize - 1;
-  const naiveCorrect = baseline.bestScore === windowSize && predictedStep === targetStep;
 
-  const workRatio = vsaScoredLocations > 0 ? baseline.comparisons / vsaScoredLocations : null;
-  const vsaCorrect = targetLocKey != null && winner?.value === targetLocKey;
+  const vsaStart = performance.now();
+  const snapshot = await session.brain.replay(targetStep);
+  const vsaTimeMs = performance.now() - vsaStart;
+  const vsaReplaySteps = session.brain.lastReplaySteps ?? 0;
 
-  return {
+  const naiveAnswer = answerFromState(naiveState, payload);
+  const vsaAnswer = answerFromState(snapshot, payload);
+  const mismatch = JSON.stringify(naiveAnswer) !== JSON.stringify(vsaAnswer);
+
+  const metrics = {
     targetStep,
-    windowSize,
-    noiseRate,
-    perfRuns,
-    vsaTimeMs,
+    historyLength: session.history.length,
     naiveTimeMs,
-    vsaScoredLocations,
-    vsaPerTokenCandidates,
-    naiveComparisons: baseline.comparisons,
-    workRatio,
-    vsaCorrect,
-    naiveCorrect,
-    targetLocKey,
-    vsaWinnerLocKey: winner?.value ?? null,
-    naiveBestScore: baseline.bestScore
+    vsaTimeMs,
+    naiveReplaySteps: targetStep + 1,
+    vsaReplaySteps,
+    mismatch,
+    mismatchDetails: mismatch
+      ? {
+        type: payload.type,
+        naiveAnswer,
+        vsaAnswer
+      }
+      : null
   };
+
+  return { metrics, snapshot };
 }
 
 async function handleQuery(session, payload) {
@@ -639,8 +595,9 @@ async function handleQuery(session, payload) {
     return { answerText: 'No events yet.', metrics: null };
   }
 
-  const snapshot = stateAtStep(session, targetStep);
-  const metrics = computeLocalizationMetrics(session, targetStep, payload);
+  const perf = await computePerformanceMetrics(session, targetStep, payload);
+  const snapshot = perf.snapshot;
+  const metrics = perf.metrics;
   const respond = (answerText) => {
     session.lastQueryStats = metrics;
     return { answerText, metrics };

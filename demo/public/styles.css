@@ -485,6 +485,137 @@ canvas {
   color: #f7b4b4;
 }
 
+body.is-busy {
+  cursor: progress;
+}
+
+body.is-busy * {
+  cursor: progress;
+}
+
+.busy-overlay {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(6, 9, 18, 0.7);
+  backdrop-filter: blur(2px);
+  z-index: 9999;
+}
+
+.busy-overlay.active {
+  display: flex;
+}
+
+.busy-dialog {
+  min-width: 240px;
+  padding: 18px 20px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(10, 15, 30, 0.96);
+  box-shadow: var(--shadow), var(--glow);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.busy-spinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-top-color: var(--accent);
+  animation: busy-spin 0.9s linear infinite;
+}
+
+.busy-text {
+  font-size: 13px;
+  letter-spacing: 0.2px;
+}
+
+@keyframes busy-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.mismatch-overlay {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(4, 6, 14, 0.78);
+  backdrop-filter: blur(3px);
+  z-index: 10000;
+  padding: 20px;
+}
+
+.mismatch-overlay.active {
+  display: flex;
+}
+
+.mismatch-dialog {
+  width: min(980px, 96vw);
+  max-height: 86vh;
+  overflow: auto;
+  padding: 18px 20px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(9, 13, 28, 0.98);
+  box-shadow: var(--shadow), var(--glow);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mismatch-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mismatch-title {
+  font-weight: 700;
+  color: #ffd6d6;
+}
+
+.mismatch-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.mismatch-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.mismatch-col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mismatch-col-title {
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.mismatch-col textarea {
+  min-height: 160px;
+  resize: vertical;
+}
+
 @media (max-width: 1100px) {
   .grid {
     grid-template-columns: 1fr;
@@ -496,5 +627,9 @@ canvas {
 
   .columns-control {
     width: 100%;
+  }
+
+  .mismatch-grid {
+    grid-template-columns: 1fr;
   }
 }

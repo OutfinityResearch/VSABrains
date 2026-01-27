@@ -28,20 +28,28 @@ const queryItemField = $('#queryItemField');
 const queryLocationField = $('#queryLocationField');
 const queryStepField = $('#queryStepField');
 const queryLimitField = $('#queryLimitField');
-const perfRunsInput = $('#perfRuns');
 const runQueryBtn = $('#runQueryBtn');
 const queryAnswer = $('#queryAnswer');
 const perfBarVsa = $('#perfBarVsa');
 const perfBarNaive = $('#perfBarNaive');
 const perfBarVsaValue = $('#perfBarVsaValue');
 const perfBarNaiveValue = $('#perfBarNaiveValue');
+const busyOverlay = $('#busyOverlay');
+const busyMessage = $('#busyMessage');
+const mismatchOverlay = $('#mismatchOverlay');
+const mismatchCloseBtn = $('#mismatchCloseBtn');
+const mismatchType = $('#mismatchType');
+const mismatchStep = $('#mismatchStep');
+const mismatchVsa = $('#mismatchVsa');
+const mismatchNaive = $('#mismatchNaive');
 
 let state = null;
 const sessionId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const STORY_LENGTH = 1_000;
 const APPEND_COUNT = 10_000;
-const DEFAULT_PERF_RUNS = 500;
 const columnColors = ['#7b8dff', '#52f2c2', '#ffb454', '#ff6bb5', '#73e2ff', '#c2ff6b'];
+let busyCount = 0;
+let busyDisabledElements = [];
 
 function populateSelect(select, values) {
   if (!select) return;
@@ -54,14 +62,81 @@ function populateSelect(select, values) {
   });
 }
 
-async function fetchJson(url, options) {
-  const headers = { ...(options?.headers ?? {}), 'x-session-id': sessionId };
-  const res = await fetch(url, { ...options, headers });
-  const data = await res.json();
-  if (!res.ok || data.ok === false) {
-    throw new Error(data.error || 'Request failed');
+function collectInteractiveElements() {
+  return [...document.querySelectorAll('button, input, select, textarea')]
+    .filter((el) => el.id !== 'storyField' && el.id !== 'queryAnswer');
+}
+
+function setBusy(active, message = 'Working…') {
+  if (active) {
+    if (busyCount === 0) {
+      busyDisabledElements = collectInteractiveElements().filter((el) => !el.disabled);
+      busyDisabledElements.forEach((el) => { el.disabled = true; });
+    }
+    busyCount += 1;
+    if (busyOverlay) busyOverlay.classList.add('active');
+    if (busyMessage) busyMessage.textContent = message;
+    document.body.classList.add('is-busy');
+    return;
   }
-  return data;
+
+  busyCount = Math.max(0, busyCount - 1);
+  if (busyCount > 0) return;
+  busyDisabledElements.forEach((el) => { el.disabled = false; });
+  busyDisabledElements = [];
+  if (busyOverlay) busyOverlay.classList.remove('active');
+  document.body.classList.remove('is-busy');
+}
+
+function inferBusyMessage(url, fallback) {
+  if (fallback) return fallback;
+  if (url.includes('/api/story/generate')) return 'Generating story on server…';
+  if (url.includes('/api/story/append')) return 'Appending actions on server…';
+  if (url.includes('/api/config')) return 'Rebuilding columns on server…';
+  if (url.includes('/api/query')) return 'Running query on server…';
+  if (url.includes('/api/state')) return 'Loading state from server…';
+  return 'Working…';
+}
+
+async function fetchJson(url, options) {
+  const { busyMessage: busyText, ...fetchOptions } = options ?? {};
+  setBusy(true, inferBusyMessage(url, busyText));
+  const headers = { ...(fetchOptions.headers ?? {}), 'x-session-id': sessionId };
+  try {
+    const res = await fetch(url, { ...fetchOptions, headers });
+    const data = await res.json();
+    if (!res.ok || data.ok === false) {
+      throw new Error(data.error || 'Request failed');
+    }
+    return data;
+  } finally {
+    setBusy(false);
+  }
+}
+
+function safeStringify(value) {
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch (err) {
+    return String(value);
+  }
+}
+
+function hideMismatch() {
+  if (mismatchOverlay) mismatchOverlay.classList.remove('active');
+}
+
+function showMismatch(metrics) {
+  if (!metrics?.mismatch || !metrics.mismatchDetails) {
+    hideMismatch();
+    return;
+  }
+  const details = metrics.mismatchDetails;
+  if (mismatchType) mismatchType.textContent = `Type: ${details.type ?? metrics.type ?? 'unknown'}`;
+  if (mismatchStep) mismatchStep.textContent = `Step: ${metrics.targetStep ?? 'latest'}`;
+  if (mismatchVsa) mismatchVsa.value = safeStringify(details.vsaAnswer);
+  if (mismatchNaive) mismatchNaive.value = safeStringify(details.naiveAnswer);
+  if (mismatchOverlay) mismatchOverlay.classList.add('active');
 }
 
 function setStatus(message, tone = 'error') {
@@ -73,12 +148,23 @@ function setStatus(message, tone = 'error') {
   statusMsg.style.color = tone === 'error' ? '#f7b4b4' : '#a2f5d6';
 }
 
-function displaySeconds(ms) {
-  if (!Number.isFinite(ms)) return { label: '—', seconds: NaN };
-  const seconds = ms / 1000;
-  if (seconds < 1) return { label: '<1s', seconds: 1 };
-  const rounded = Math.max(1, Math.round(seconds));
-  return { label: `${rounded}s`, seconds: rounded };
+function displayTime(ms) {
+  if (!Number.isFinite(ms)) return { label: '—', scaleSeconds: NaN };
+  const safeMs = Math.max(0, ms);
+  const seconds = safeMs / 1000;
+  if (seconds >= 1) {
+    const roundedSeconds = Math.max(1, Math.round(seconds));
+    return { label: `${roundedSeconds}s`, scaleSeconds: seconds };
+  }
+  if (safeMs < 1) {
+    return { label: '<1 ms', scaleSeconds: 0.001 };
+  }
+  const msLabel = safeMs < 10
+    ? safeMs.toFixed(2)
+    : safeMs < 100
+      ? safeMs.toFixed(1)
+      : String(Math.round(safeMs));
+  return { label: `${msLabel} ms`, scaleSeconds: seconds };
 }
 
 function updatePerf(metrics) {
@@ -102,31 +188,25 @@ function updatePerf(metrics) {
 
   const vsaTime = Number.isFinite(metrics.vsaTimeMs) ? metrics.vsaTimeMs : NaN;
   const naiveTime = Number.isFinite(metrics.naiveTimeMs) ? metrics.naiveTimeMs : NaN;
-  const vsaDisplay = displaySeconds(vsaTime);
-  const naiveDisplay = displaySeconds(naiveTime);
-  const safeVsa = Number.isFinite(vsaDisplay.seconds) ? vsaDisplay.seconds : 0;
-  const safeNaive = Number.isFinite(naiveDisplay.seconds) ? naiveDisplay.seconds : 0;
-  const maxTime = Math.max(safeVsa, safeNaive, 1);
-  const denom = Math.log10(maxTime + 1);
+  const vsaDisplay = displayTime(vsaTime);
+  const naiveDisplay = displayTime(naiveTime);
+  const safeVsa = Number.isFinite(vsaDisplay.scaleSeconds) ? vsaDisplay.scaleSeconds : 0;
+  const safeNaive = Number.isFinite(naiveDisplay.scaleSeconds) ? naiveDisplay.scaleSeconds : 0;
+  const maxTime = Math.max(safeVsa, safeNaive, 1e-9);
   const scaleWidth = (cost) => {
-    if (!Number.isFinite(cost) || denom <= 0) return 0;
-    const pct = (Math.log10(cost + 1) / denom) * 100;
-    return Math.max(6, Math.min(100, pct));
+    if (!Number.isFinite(cost) || cost <= 0) return 0;
+    const pct = (cost / maxTime) * 100;
+    return Math.max(2, Math.min(100, pct));
   };
 
-  const runs = Number.isFinite(metrics.perfRuns)
-    ? metrics.perfRuns
-    : Math.max(1, Math.floor(Number(perfRunsInput?.value ?? DEFAULT_PERF_RUNS)));
-  const runsLabel = `${runs} runs`;
-  const vsaLabel = Number.isFinite(vsaDisplay.seconds)
-    ? `${vsaDisplay.label} · ${runsLabel}`
-    : '—';
-  const naiveLabel = Number.isFinite(naiveDisplay.seconds)
-    ? `${naiveDisplay.label} · ${runsLabel}`
+  const mismatchLabel = metrics.mismatch ? ' · mismatch' : '';
+  const vsaLabel = Number.isFinite(vsaDisplay.scaleSeconds) ? `${vsaDisplay.label}${mismatchLabel}` : '—';
+  const naiveLabel = Number.isFinite(naiveDisplay.scaleSeconds)
+    ? `${naiveDisplay.label}${mismatchLabel}`
     : '—';
 
-  setBar(perfBarVsa, perfBarVsaValue, `${scaleWidth(vsaDisplay.seconds)}%`, vsaLabel);
-  setBar(perfBarNaive, perfBarNaiveValue, `${scaleWidth(naiveDisplay.seconds)}%`, naiveLabel);
+  setBar(perfBarVsa, perfBarVsaValue, `${scaleWidth(vsaDisplay.scaleSeconds)}%`, vsaLabel);
+  setBar(perfBarNaive, perfBarNaiveValue, `${scaleWidth(naiveDisplay.scaleSeconds)}%`, naiveLabel);
 }
 
 function drawGrid() {
@@ -311,14 +391,14 @@ async function applyColumns() {
 
 async function runQuery() {
   try {
+    hideMismatch();
     const payload = {
       type: queryType.value,
       entity: queryEntity.value,
       item: queryItem.value,
       location: queryLocation.value,
       windowSize: 6,
-      noiseRate: 0.25,
-      perfRuns: Math.max(1, Math.floor(Number(perfRunsInput?.value ?? DEFAULT_PERF_RUNS)))
+      noiseRate: 0.25
     };
     if (queryStepField.style.display !== 'none' && queryStep.value !== '') {
       payload.step = Number(queryStep.value);
@@ -333,9 +413,11 @@ async function runQuery() {
     });
     queryAnswer.value = result.answerText ?? '';
     updatePerf(result.metrics ?? null);
+    showMismatch(result.metrics ?? null);
   } catch (err) {
     queryAnswer.value = err.message;
     updatePerf(null);
+    hideMismatch();
   }
 }
 
@@ -352,6 +434,7 @@ function attachEvents() {
   tabButtons.forEach((btn) => btn.addEventListener('click', () => setTab(btn.dataset.tab)));
   queryType.addEventListener('change', updateQueryFields);
   runQueryBtn.addEventListener('click', runQuery);
+  if (mismatchCloseBtn) mismatchCloseBtn.addEventListener('click', hideMismatch);
 }
 
 async function boot() {
