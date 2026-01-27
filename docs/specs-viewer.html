@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Specification | VSAVM</title>
+    <title>Specification | VSABrains</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
@@ -12,13 +12,7 @@
   <body>
     <div class="site">
       <header class="header">
-        <div class="brand">VSAVM</div>
-        <nav class="nav">
-          <a href="index.html">Home</a>
-          <a href="specs/">Specs</a>
-          <a href="theory/index.html">Theory</a>
-          <a href="wiki/index.html">Wiki</a>
-        </nav>
+        <a class="brand" href="index.html">VSABrains</a>
       </header>
       <main class="main content">
         <div class="section md-viewer">
@@ -31,7 +25,7 @@
         </div>
       </main>
       <footer class="footer">
-        VSAVM is an Axiologic Research experiment within the Achilles project. This static documentation is written in clear academic English for engineers.
+        VSABrains is an Axiologic Research experiment within the Achilles project. This static documentation is written in clear academic English for engineers.
       </footer>
     </div>
     <script>
@@ -77,10 +71,27 @@
         return loc.origin + loc.pathname.replace(/\/[^\/]*$/, "/");
       }
 
+      function normalizePath(path) {
+        const segments = [];
+        path.split("/").forEach((segment) => {
+          if (!segment || segment === ".") return;
+          if (segment === "..") {
+            segments.pop();
+            return;
+          }
+          segments.push(segment);
+        });
+        return segments.join("/");
+      }
+
       function resolveRelativeUrl(baseDir, url) {
         if (url.startsWith("#") || url.startsWith("/") || isAbsoluteUrl(url)) return url;
-        if (url.includes("..")) return url;
-        return `${baseDir}${url}`;
+        const [pathAndQuery, hashPart] = url.split("#");
+        const [pathPart, queryPart] = pathAndQuery.split("?");
+        const normalized = normalizePath(`${baseDir}${pathPart}`);
+        const querySuffix = queryPart ? `?${queryPart}` : "";
+        const hashSuffix = hashPart ? `#${hashPart}` : "";
+        return `${normalized}${querySuffix}${hashSuffix}`;
       }
 
       function viewerUrlFor(resolvedUrl) {
@@ -91,6 +102,21 @@
           return `specs-viewer.html?doc=${encodeURIComponent(path)}${fragment}`;
         }
         return resolvedUrl;
+      }
+
+      function rewriteHtmlImgTag(line, baseDir) {
+        const srcMatch = line.match(/\ssrc=["']([^"']+)["']/i);
+        if (!srcMatch) return null;
+        const altMatch = line.match(/\salt=["']([^"']*)["']/i);
+        const styleMatch = line.match(/\sstyle=["']([^"']*)["']/i);
+        const resolvedSrc = resolveRelativeUrl(baseDir, srcMatch[1].trim());
+        const attrs = [`src="${escapeHtml(resolvedSrc)}"`];
+        if (altMatch) attrs.push(`alt="${escapeHtml(altMatch[1].trim())}"`);
+        if (styleMatch) attrs.push(`style="${escapeHtml(styleMatch[1].trim())}"`);
+        return {
+          alt: altMatch ? altMatch[1].trim() : "",
+          html: `<img ${attrs.join(" ")}>`,
+        };
       }
 
       function inlineMarkdown(text, baseDir) {
@@ -304,6 +330,22 @@
             flushOrderedList();
           }
 
+          const htmlImgMatch = line.match(/^<img\s+[^>]*>$/i);
+          if (htmlImgMatch) {
+            flushList();
+            flushOrderedList();
+            flushParagraph();
+            flushTable();
+            const rewritten = rewriteHtmlImgTag(line, baseDir);
+            if (rewritten) {
+              const caption = rewritten.alt ? `<figcaption>${escapeHtml(rewritten.alt)}</figcaption>` : "";
+              out.push(`<figure class="md-figure">${rewritten.html}${caption}</figure>`);
+            } else {
+              out.push(escapeHtml(line));
+            }
+            continue;
+          }
+
           const imageOnly = line.match(/^!\[([^\]]*)\]\(([^\)]+)\)\s*$/);
           if (imageOnly) {
             flushList();
@@ -376,7 +418,7 @@
 
           const docTitle = extractTitle(rendered.html);
           if (docTitle) {
-            document.title = `${docTitle} | VSAVM`;
+            document.title = `${docTitle} | VSABrains`;
           }
 
           if (rendered.toc.length === 0) {

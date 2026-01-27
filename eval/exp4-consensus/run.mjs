@@ -27,9 +27,15 @@ async function runConsensusScenario(config) {
   let totalSteps = 0;
   let totalNonEmptyCells = 0;
   let totalFullCells = 0;
+  let totalLocationIndexEntries = 0;
   const approxEntryBytes = config.approxEntryBytes ?? 8;
   const baselineTokenBytes = config.baselineTokenBytes ?? 4;
   const baselineMatchThreshold = config.baselineMatchThreshold ?? windowSize;
+  const approxIndexEntryBytes = config.approxIndexEntryBytes ?? 16;
+  let vsaColumnLocalizations = 0;
+  let vsaPerTokenCandidatesSum = 0;
+  let vsaScoredLocationsSum = 0;
+  let vsaScoredLocationsPerQuerySum = 0;
 
   for (let trial = 0; trial < numTrials; trial += 1) {
     const oracle = new VSABrains({ ...config.brainConfig, numColumns: 1 });
@@ -57,20 +63,38 @@ async function runConsensusScenario(config) {
       if (pos + 1 >= windowSize) {
         const cleanWindow = tokens.slice(pos + 1 - windowSize, pos + 1);
         const votes = [];
+        let scoredLocationsThisQuery = 0;
         for (let c = 0; c < numColumns; c += 1) {
           const noisyWindow = corruptWindow(cleanWindow, rng, noiseRate, vocabSize);
-          const candidates = brain.localizer._localizeColumn(noisyWindow, brain.columns[c], 5, config.localization ?? {});
+          const debugConfig = { ...(config.localization ?? {}), debug: true };
+          const debugResult = brain.localizer._localizeColumn(noisyWindow, brain.columns[c], 5, debugConfig);
+          const candidates = debugResult.candidates ?? [];
           const top1 = candidates[0]?.locKey;
           if (top1 != null) {
             votes.push({ value: top1, weight: candidates[0]?.score ?? 1 });
           }
           if (top1 === locKeys[pos]) perColumnHits[c] += 1;
+
+          const perTokenCandidates = debugResult.stats?.perTokenCandidates ?? [];
+          const perTokenMean = perTokenCandidates.length > 0
+            ? perTokenCandidates.reduce((sum, v) => sum + v, 0) / perTokenCandidates.length
+            : 0;
+          const scoredLocations = debugResult.stats?.scoredLocations ?? candidates.length;
+
+          vsaColumnLocalizations += 1;
+          vsaPerTokenCandidatesSum += perTokenMean;
+          vsaScoredLocationsSum += scoredLocations;
+          scoredLocationsThisQuery += scoredLocations;
         }
 
         if (votes.length > 0) {
           totalSteps += 1;
           const winner = brain.voter.vote(votes);
           if (winner.value === locKeys[pos]) consensusCorrect += 1;
+        }
+
+        if (votes.length > 0) {
+          vsaScoredLocationsPerQuerySum += scoredLocationsThisQuery;
         }
 
         const baselineWindow = corruptWindow(cleanWindow, rng, noiseRate, vocabSize);
@@ -94,6 +118,17 @@ async function runConsensusScenario(config) {
     const fullCells = mapStats.reduce((sum, stat) => sum + (stat.cellsAtFullCapacity ?? 0), 0);
     totalNonEmptyCells += nonEmpty;
     totalFullCells += fullCells;
+
+    const locationIndexEntries = brain.columns.reduce((sum, column) => {
+      const tokenMaps = column.locationIndex?.tokenToLocations;
+      if (!tokenMaps) return sum;
+      let entries = 0;
+      for (const locMap of tokenMaps.values()) {
+        entries += locMap.size;
+      }
+      return sum + entries;
+    }, 0);
+    totalLocationIndexEntries += locationIndexEntries;
   }
 
   const denominator = Math.max(1, totalSteps);
@@ -104,7 +139,16 @@ async function runConsensusScenario(config) {
   const baselineComparisonsPerQuery = baselineQueries > 0 ? baselineComparisons / baselineQueries : 0;
   const vsaNonEmptyCellsAvg = totalNonEmptyCells / Math.max(1, numTrials);
   const vsaApproxBytesLowerBound = vsaNonEmptyCellsAvg * (config.brainConfig?.mapConfig?.k ?? 4) * approxEntryBytes;
+  const locationIndexEntriesAvg = totalLocationIndexEntries / Math.max(1, numTrials);
+  const locationIndexApproxBytesLowerBound = locationIndexEntriesAvg * approxIndexEntryBytes;
   const baselineApproxBytesLowerBound = seqLength * baselineTokenBytes;
+  const vsaPerTokenCandidatesAvg = vsaColumnLocalizations > 0 ? vsaPerTokenCandidatesSum / vsaColumnLocalizations : 0;
+  const vsaScoredLocationsPerColumnAvg = vsaColumnLocalizations > 0 ? vsaScoredLocationsSum / vsaColumnLocalizations : 0;
+  const vsaScoredLocationsPerQueryAvg = totalSteps > 0 ? vsaScoredLocationsPerQuerySum / totalSteps : 0;
+  const vsaVsBaselineWorkRatio = vsaScoredLocationsPerQueryAvg > 0
+    ? baselineComparisonsPerQuery / vsaScoredLocationsPerQueryAvg
+    : 0;
+  const vsaTotalApproxBytesLowerBound = vsaApproxBytesLowerBound + locationIndexApproxBytesLowerBound;
 
   return {
     consensusAcc,
@@ -117,10 +161,18 @@ async function runConsensusScenario(config) {
     vsaFullCellsAvg: totalFullCells / Math.max(1, numTrials),
     baselineTokens: seqLength,
     vsaApproxBytesLowerBound,
+    locationIndexEntriesAvg,
+    locationIndexApproxBytesLowerBound,
+    vsaTotalApproxBytesLowerBound,
     baselineApproxBytesLowerBound,
     approxEntryBytes,
+    approxIndexEntryBytes,
     baselineTokenBytes,
     baselineMatchThreshold,
+    vsaPerTokenCandidatesAvg,
+    vsaScoredLocationsPerColumnAvg,
+    vsaScoredLocationsPerQueryAvg,
+    vsaVsBaselineWorkRatio,
     consensusGainOverBest: consensusAcc - bestColumnAcc,
     consensusGainOverSingle: consensusAcc - singleColumnAcc,
     consensusGainOverBaseline: consensusAcc - baselineAcc,

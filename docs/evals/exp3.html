@@ -1,0 +1,31 @@
+<div class="section">
+  <h2>Experiment 3: Grounded RAG</h2>
+  <p>
+    Goal: answer questions with explicit evidence and clear verdicts. The system should support
+    answerable questions, refuse unsupported ones, and detect conflicts across facts and qualifiers.
+  </p>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Metric</th>
+        <th>Value</th>
+        <th>Target</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>Supported Precision</td><td>1.00</td><td>&gt; 0.95</td><td><span class="status-pill status-pass">Pass</span></td></tr>
+      <tr><td>Supported Recall</td><td>1.00</td><td>&gt; 0.85</td><td><span class="status-pill status-pass">Pass</span></td></tr>
+      <tr><td>Refusal Accuracy</td><td>1.00</td><td>&gt; 0.90</td><td><span class="status-pill status-pass">Pass</span></td></tr>
+      <tr><td>Conflict Precision/Recall</td><td>1.00 / 1.00</td><td>&gt; 0.85 / &gt; 0.80</td><td><span class="status-pill status-pass">Pass</span></td></tr>
+      <tr><td>Chain Correctness</td><td>1.00</td><td>&gt; 0.90</td><td><span class="status-pill status-pass">Pass</span></td></tr>
+      <tr><td>Extraction Consistency</td><td>1.00</td><td>&gt;= 0.80</td><td><span class="status-pill status-pass">Pass</span></td></tr>
+      <tr><td>Predicate Coverage</td><td>1.00</td><td>100%</td><td><span class="status-pill status-pass">Pass</span></td></tr>
+    </tbody>
+  </table>
+  <p class="note">
+    Exp3 currently uses a deterministic extractor stub for evaluation consistency; real LLM extraction
+    quality and variance remain untested.
+  </p>
+</div>
+

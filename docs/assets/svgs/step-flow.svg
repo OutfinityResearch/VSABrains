@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 220" role="img" aria-label="Step flow diagram">
+  <defs>
+    <marker id="arrow-step" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0f172a"></path>
+    </marker>
+    <style>
+      .frame { fill: #ffffff; stroke: rgba(0,0,0,0.08); stroke-width: 2; rx: 12; ry: 12; }
+      .box { fill: #ffffff; stroke: #0f172a; stroke-width: 1.5; rx: 10; ry: 10; }
+      .sub { fill: #f8fafc; stroke: #cbd5e1; stroke-width: 1.2; rx: 8; ry: 8; }
+      .title { font: 600 14px system-ui, -apple-system, Segoe UI, Roboto, sans-serif; fill: #0f172a; }
+      .label { font: 500 12px system-ui, -apple-system, Segoe UI, Roboto, sans-serif; fill: #334155; }
+      .arrow { stroke: #0f172a; stroke-width: 1.8; fill: none; marker-end: url(#arrow-step); }
+    </style>
+  </defs>
+
+  <rect class="frame" x="6" y="6" width="968" height="208"></rect>
+
+  <rect class="box" x="20" y="28" width="150" height="54"></rect>
+  <text class="title" x="95" y="50" text-anchor="middle">Input</text>
+  <text class="label" x="95" y="68" text-anchor="middle">token / event</text>
+
+  <path class="arrow" d="M 170 55 L 220 55"></path>
+
+  <rect class="box" x="220" y="28" width="180" height="54"></rect>
+  <text class="title" x="310" y="50" text-anchor="middle">Normalize</text>
+  <text class="label" x="310" y="68" text-anchor="middle">→ StepInput</text>
+
+  <path class="arrow" d="M 400 55 L 450 55"></path>
+
+  <rect class="box" x="450" y="18" width="220" height="74"></rect>
+  <text class="title" x="560" y="40" text-anchor="middle">stepWrite</text>
+  <rect class="sub" x="466" y="50" width="188" height="30"></rect>
+  <text class="label" x="560" y="70" text-anchor="middle">write → index → hooks</text>
+
+  <path class="arrow" d="M 670 55 L 720 55"></path>
+
+  <rect class="box" x="720" y="18" width="240" height="74"></rect>
+  <text class="title" x="840" y="40" text-anchor="middle">displacementEncoder.step</text>
+  <rect class="sub" x="736" y="50" width="208" height="30"></rect>
+  <text class="label" x="840" y="70" text-anchor="middle">append buffer → displacement</text>
+
+  <path class="arrow" d="M 840 92 L 840 140"></path>
+
+  <rect class="box" x="690" y="140" width="270" height="62"></rect>
+  <text class="title" x="825" y="164" text-anchor="middle">stepMove(dx, dy)</text>
+  <text class="label" x="825" y="184" text-anchor="middle">update location with wrap</text>
+</svg>
+

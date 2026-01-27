@@ -12,16 +12,7 @@ This document describes the three evaluation suites (experiments) used to valida
 
 The evaluation framework lives in `eval/` with the following structure:
 
-```
-eval/
-├── common/
-│   ├── DataGenerator.mjs    # Synthetic data generation utilities
-│   ├── Metrics.mjs          # Metric computation library
-│   └── Reporter.mjs         # Results reporting and export
-├── exp1-alignment/          # Experiment 1: Reference-Frame Alignment
-├── exp2-narrative/          # Experiment 2: Narrative Coherence  
-└── exp3-rag/                # Experiment 3: Grounded RAG
-```
+<img src="../assets/svgs/eval-structure.svg" alt="Evaluation directory structure" style="width: 100%; max-width: 980px; height: auto; border: 1px solid rgba(0,0,0,0.08); border-radius: 12px; background: white;">
 
 ---
 

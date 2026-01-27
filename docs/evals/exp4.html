@@ -1,0 +1,139 @@
+<div class="section">
+  <h2>Experiment 4: Consensus vs Naive List</h2>
+  <p>
+    Goal: show why multi-column consensus is not just “more of the same.” We ingest a clean stream,
+    then we query with noisy windows. Each column sees a different noisy version of the same window.
+    Consensus should recover the correct location more reliably than any single view or a naive list scan.
+  </p>
+  <p class="note">
+    Baselines: “Single Column” means using just column 0. “Best Column” is the best-performing column
+    without voting (an optimistic upper bound). “Naive List” linearly scans the full token list and only
+    accepts an exact window match.
+  </p>
+  <p class="note">
+    “Proxy” metrics are rough lower-bound estimates, not exact measurements. They are useful for comparing
+    scaling trends (linear scans vs indexed search) without claiming precise runtime or memory.
+  </p>
+
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Metric</th>
+        <th>Value</th>
+        <th>Target</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>Consensus Acc</td><td>0.992</td><td>&gt; 0.90</td><td><span class="status-pill status-pass">Pass</span></td></tr>
+      <tr><td>Single Column Acc</td><td>0.769</td><td class="muted">—</td><td><span class="status-pill status-partial">Baseline</span></td></tr>
+      <tr><td>Best Column Acc</td><td>0.780</td><td class="muted">—</td><td><span class="status-pill status-partial">Baseline</span></td></tr>
+      <tr><td>Naive List Acc</td><td>0.183</td><td class="muted">—</td><td><span class="status-pill status-partial">Baseline</span></td></tr>
+      <tr><td>Consensus Gain (vs Single)</td><td>0.224</td><td>&gt; 0.05</td><td><span class="status-pill status-pass">Pass</span></td></tr>
+      <tr><td>Consensus Gain (vs Naive)</td><td>0.809</td><td>&gt; 0.05</td><td><span class="status-pill status-pass">Pass</span></td></tr>
+      <tr><td>List Comparisons / Query</td><td>1,188</td><td class="muted">Linear scan</td><td><span class="status-pill status-pass">Expected</span></td></tr>
+      <tr><td>VSA Storage (lower bound)</td><td>103,040 bytes</td><td class="muted">Proxy</td><td><span class="status-pill status-partial">Proxy</span></td></tr>
+      <tr><td>List Storage (lower bound)</td><td>1,600 bytes</td><td class="muted">Proxy</td><td><span class="status-pill status-partial">Proxy</span></td></tr>
+    </tbody>
+  </table>
+
+  <p>
+    Interpretation: consensus is much more robust to noise. Here it reaches 0.992 accuracy, while a single
+    column is ~0.769 and the naive list baseline is ~0.183 under the same noisy queries. The large positive
+    “Consensus Gain” values show that voting is doing real work, not just averaging identical answers.
+  </p>
+
+  <h3>Visual: Accuracy vs Noise</h3>
+  <img src="../assets/svgs/exp4-accuracy-vs-noise.svg" alt="Accuracy versus noise for different column counts" style="width: 100%; max-width: 980px; height: auto; border: 1px solid rgba(0,0,0,0.08); border-radius: 12px; background: white;">
+  <p class="note">
+    Read left to right: noise goes up, the red line (1 column) drops, while the blue/green lines (5–9 columns)
+    stay near the top.
+  </p>
+
+  <h3>Visual: Gain vs Columns (Noise = 0.35)</h3>
+  <img src="../assets/svgs/exp4-gain-vs-columns-noise-035.svg" alt="Consensus gain versus columns at noise 0.35" style="width: 100%; max-width: 980px; height: auto; border: 1px solid rgba(0,0,0,0.08); border-radius: 12px; background: white;">
+  <p class="note">
+    This fixes the hardest noise level (0.35) and shows how much accuracy you recover compared to a single column.
+    Most of the gain appears by 5 columns.
+  </p>
+
+  <h3>Work / Speed Proxies (Why this beats a naive list)</h3>
+  <p class="note">
+    We use a work proxy rather than a raw runtime claim. For the naive list, the work is “token comparisons per query.”
+    For VSABrains, the proxy is “candidate locations scored per query.” Lower is better for both.
+  </p>
+
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Work Proxy (noise=0.25, cols=5)</th>
+        <th>Naive List</th>
+        <th>VSABrains</th>
+        <th>Interpretation</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>Work per query</td><td>1,188 comparisons</td><td>5.67 locations scored</td><td>VSABrains does far less work</td></tr>
+      <tr><td>Baseline ÷ VSA work</td><td colspan="2">~209×</td><td>Large win under noisy queries</td></tr>
+      <tr><td>Index hits per token</td><td class="muted">—</td><td>~1.14 candidates/token/column</td><td>Index stays tight</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Visual: Work Proxy (Noise = 0.25, Cols = 5)</h3>
+  <img src="../assets/svgs/exp4-work-compare-noise-025-cols-5.svg" alt="Work proxy comparison at noise 0.25 with 5 columns" style="width: 100%; max-width: 980px; height: auto; border: 1px solid rgba(0,0,0,0.08); border-radius: 12px; background: white;">
+  <p class="note">
+    The naive list must compare against almost the whole stream, while VSABrains narrows the search to a tiny
+    candidate set via the index.
+  </p>
+
+  <h3>Visual: Work Ratio vs Columns (Noise = 0.35)</h3>
+  <img src="../assets/svgs/exp4-work-ratio-vs-columns-noise-035.svg" alt="Baseline work ratio versus columns at noise 0.35" style="width: 100%; max-width: 980px; height: auto; border: 1px solid rgba(0,0,0,0.08); border-radius: 12px; background: white;">
+  <p class="note">
+    Even at high noise, the naive scan still does ~100–800× more proxy work than the indexed VSABrains approach.
+    More columns add some work, but the gap remains very large.
+  </p>
+
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Baseline ÷ VSA Work Ratio</th>
+        <th>Cols=1</th>
+        <th>Cols=5</th>
+        <th>Cols=9</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>Noise 0.15</td><td>~856×</td><td>~191×</td><td>~106×</td></tr>
+      <tr><td>Noise 0.25</td><td>~854×</td><td>~209×</td><td>~115×</td></tr>
+      <tr><td>Noise 0.35</td><td>~862×</td><td>~226×</td><td>~125×</td></tr>
+    </tbody>
+  </table>
+
+  <p class="note">Last run: 2026-01-27T12:59:38Z. Noise rate 0.25, window size 6, columns 5, baselineMatchThreshold=6 (exact match).</p>
+  <p class="note">Sweep run: 2026-01-27T12:59:46Z. See eval/exp4-consensus/sweep.mjs for configuration.</p>
+  <p class="note">Storage proxy caveat: VSA storage proxy can be larger than the naive list in small configs. The main advantage shown here is robustness plus much lower query work under noise.</p>
+
+  <h3>Consensus Sweep (Columns × Noise)</h3>
+  <p class="note">
+    As noise increases, 1 column degrades while 5–9 columns remain strong. The gain columns show how much accuracy
+    is recovered by adding columns.
+  </p>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Noise</th>
+        <th>Cols=1 Acc</th>
+        <th>Cols=5 Acc</th>
+        <th>Cols=5 Gain</th>
+        <th>Cols=9 Acc</th>
+        <th>Cols=9 Gain</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>0.15</td><td>0.939</td><td>0.997</td><td>+0.146</td><td>1.000</td><td>+0.151</td></tr>
+      <tr><td>0.25</td><td>0.901</td><td>0.992</td><td>+0.224</td><td>1.000</td><td>+0.276</td></tr>
+      <tr><td>0.35</td><td>0.852</td><td>0.976</td><td>+0.335</td><td>1.000</td><td>+0.312</td></tr>
+    </tbody>
+  </table>
+</div>
+

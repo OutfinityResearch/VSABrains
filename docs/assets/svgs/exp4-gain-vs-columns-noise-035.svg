@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 320" role="img" aria-label="Consensus gain versus number of columns at noise 0.35">
+  <defs>
+    <style>
+      .frame { fill: #ffffff; stroke: rgba(0,0,0,0.08); stroke-width: 2; rx: 12; ry: 12; }
+      .axis { stroke: #0f172a; stroke-width: 1.6; }
+      .grid { stroke: #e5e7eb; stroke-width: 1; }
+      .tick { stroke: #0f172a; stroke-width: 1.4; }
+      .label { font: 12px system-ui, -apple-system, Segoe UI, Roboto, sans-serif; fill: #334155; }
+      .title { font: 600 14px system-ui, -apple-system, Segoe UI, Roboto, sans-serif; fill: #0f172a; }
+      .bar { fill: #2563eb; opacity: 0.9; }
+      .bar1 { fill: #94a3b8; opacity: 0.9; }
+      .value { font: 600 12px system-ui, -apple-system, Segoe UI, Roboto, sans-serif; fill: #0f172a; }
+    </style>
+  </defs>
+
+  <rect class="frame" x="6" y="6" width="968" height="308"></rect>
+  <text class="title" x="490" y="26" text-anchor="middle">Consensus gain grows quickly with more columns (noise = 0.35)</text>
+
+  <line class="axis" x1="90" y1="40" x2="90" y2="240"></line>
+  <line class="axis" x1="90" y1="240" x2="890" y2="240"></line>
+
+  <line class="grid" x1="90" y1="190" x2="890" y2="190"></line>
+  <line class="grid" x1="90" y1="140" x2="890" y2="140"></line>
+  <line class="grid" x1="90" y1="90" x2="890" y2="90"></line>
+  <line class="grid" x1="90" y1="40" x2="890" y2="40"></line>
+
+  <text class="label" x="78" y="244" text-anchor="end">0.00</text>
+  <text class="label" x="78" y="194" text-anchor="end">0.10</text>
+  <text class="label" x="78" y="144" text-anchor="end">0.20</text>
+  <text class="label" x="78" y="94" text-anchor="end">0.30</text>
+  <text class="label" x="78" y="44" text-anchor="end">0.36</text>
+
+  <text class="label" x="28" y="140" text-anchor="middle" transform="rotate(-90 28 140)">gain vs single column</text>
+  <text class="label" x="490" y="294" text-anchor="middle">number of columns</text>
+
+  <line class="tick" x1="185" y1="240" x2="185" y2="248"></line>
+  <line class="tick" x1="335" y1="240" x2="335" y2="248"></line>
+  <line class="tick" x1="485" y1="240" x2="485" y2="248"></line>
+  <line class="tick" x1="635" y1="240" x2="635" y2="248"></line>
+  <line class="tick" x1="785" y1="240" x2="785" y2="248"></line>
+
+  <text class="label" x="185" y="266" text-anchor="middle">1</text>
+  <text class="label" x="335" y="266" text-anchor="middle">3</text>
+  <text class="label" x="485" y="266" text-anchor="middle">5</text>
+  <text class="label" x="635" y="266" text-anchor="middle">7</text>
+  <text class="label" x="785" y="266" text-anchor="middle">9</text>
+
+  <rect class="bar1" x="150" y="236" width="70" height="4"></rect>
+  <rect class="bar" x="300" y="118" width="70" height="122"></rect>
+  <rect class="bar" x="450" y="73" width="70" height="167"></rect>
+  <rect class="bar" x="600" y="84" width="70" height="156"></rect>
+  <rect class="bar" x="750" y="84" width="70" height="156"></rect>
+
+  <text class="value" x="335" y="112" text-anchor="middle">+0.243</text>
+  <text class="value" x="485" y="67" text-anchor="middle">+0.335</text>
+  <text class="value" x="635" y="78" text-anchor="middle">+0.313</text>
+  <text class="value" x="785" y="78" text-anchor="middle">+0.312</text>
+</svg>
+

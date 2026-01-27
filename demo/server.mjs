@@ -2,6 +2,7 @@ import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import fs from 'node:fs/promises';
+import { performance } from 'node:perf_hooks';
 import { VSABrains } from '../src/index.mjs';
 import {
   makeExp2Vocabulary,
@@ -42,9 +43,11 @@ let brain = null;
 let vocab = null;
 let corefState = null;
 let history = [];
+let stepTokens = [];
 let contradictions = [];
 let storyState = null;
 let lastMode = 'consistent';
+let lastQueryStats = null;
 
 function makeRng(seed) {
   let t = seed >>> 0;
@@ -137,8 +140,10 @@ function initDemo({ seed, numColumns } = {}) {
   });
 
   history = [];
+  stepTokens = [];
   contradictions = [];
   storyState = initStoryState();
+  lastQueryStats = null;
 }
 
 function describeEvent(event) {
@@ -233,12 +238,15 @@ async function addEvent(event) {
   const stepInput = await brain.step({ event });
   const state = brain.getState();
   const step = state.step - 1;
+  const stepTokenId = stepInput?.stepTokenId ?? null;
+  if (stepTokenId != null) stepTokens.push(stepTokenId);
   const entry = {
     step,
     event,
     text: describeEvent(event),
     reasons,
-    locations: state.columns.map((column) => column.location)
+    locations: state.columns.map((column) => column.location),
+    stepTokenId
   };
   history.push(entry);
 
@@ -393,6 +401,124 @@ function parseTargetStep(stepValue) {
   return Math.max(0, Math.min(Math.floor(numeric), history.length - 1));
 }
 
+function packLocKey(x, y) {
+  return (((x & 0xffff) << 16) | (y & 0xffff)) >>> 0;
+}
+
+function corruptWindow(windowTokens, rng, noiseRate) {
+  const maxId = Math.max(6, vocab?.nextId ?? 6);
+  return windowTokens.map((tokenId) => {
+    if (rng() >= noiseRate) return tokenId;
+    const span = Math.max(1, maxId - 4);
+    return 4 + Math.floor(rng() * span);
+  });
+}
+
+function naiveListLocalize(list, windowTokens) {
+  let bestIndex = 0;
+  let bestScore = -1;
+  let comparisons = 0;
+  const limit = Math.max(0, list.length - windowTokens.length);
+  for (let i = 0; i <= limit; i += 1) {
+    let score = 0;
+    for (let j = 0; j < windowTokens.length; j += 1) {
+      comparisons += 1;
+      if (list[i + j] === windowTokens[j]) score += 1;
+    }
+    if (score > bestScore || (score === bestScore && i > bestIndex)) {
+      bestScore = score;
+      bestIndex = i;
+    }
+  }
+  return { bestIndex, bestScore, comparisons };
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function computeLocalizationMetrics(targetStep, payload) {
+  if (!history.length || !stepTokens.length) return null;
+
+  const windowSizeRaw = Number(payload.windowSize ?? 6);
+  const windowSize = clamp(Number.isFinite(windowSizeRaw) ? windowSizeRaw : 6, 4, 12);
+  if (targetStep < windowSize - 1) {
+    return {
+      windowSize,
+      noiseRate: payload.noiseRate ?? 0.25,
+      note: `Need at least ${windowSize} steps for localization metrics.`
+    };
+  }
+
+  const noiseRaw = Number(payload.noiseRate ?? 0.25);
+  const noiseRate = clamp(Number.isFinite(noiseRaw) ? noiseRaw : 0.25, 0, 0.6);
+  const windowStart = targetStep - windowSize + 1;
+  const cleanWindow = stepTokens.slice(windowStart, targetStep + 1);
+  const list = stepTokens.slice(0, targetStep + 1);
+
+  const rng = makeRng(targetStep * 2654435761);
+  const noisyWindow = corruptWindow(cleanWindow, rng, noiseRate);
+
+  const targetLoc = history[targetStep]?.locations?.[0];
+  const targetLocKey = targetLoc ? packLocKey(targetLoc.x, targetLoc.y) : null;
+
+  const vsaStart = performance.now();
+  const votes = [];
+  let vsaScoredLocations = 0;
+  let vsaPerTokenCandidatesAvg = 0;
+  let vsaColumnsUsed = 0;
+  for (const column of brain.columns) {
+    const debugResult = brain.localizer._localizeColumn(
+      noisyWindow,
+      column,
+      5,
+      { ...(currentConfig.localization ?? {}), debug: true }
+    );
+    const candidates = debugResult.candidates ?? [];
+    const top1 = candidates[0];
+    if (top1?.locKey != null) {
+      votes.push({ value: top1.locKey, weight: top1.score ?? 1 });
+    }
+    const perTokenCandidates = debugResult.stats?.perTokenCandidates ?? [];
+    const perTokenMean = perTokenCandidates.length > 0
+      ? perTokenCandidates.reduce((sum, v) => sum + v, 0) / perTokenCandidates.length
+      : 0;
+    const scoredLocations = debugResult.stats?.scoredLocations ?? candidates.length;
+    vsaPerTokenCandidatesAvg += perTokenMean;
+    vsaScoredLocations += scoredLocations;
+    vsaColumnsUsed += 1;
+  }
+  const winner = votes.length > 0 ? brain.voter.vote(votes) : null;
+  const vsaTimeMs = performance.now() - vsaStart;
+  const vsaPerTokenCandidates = vsaColumnsUsed > 0 ? vsaPerTokenCandidatesAvg / vsaColumnsUsed : 0;
+
+  const naiveStart = performance.now();
+  const baseline = naiveListLocalize(list, noisyWindow);
+  const naiveTimeMs = performance.now() - naiveStart;
+  const predictedStep = baseline.bestIndex + windowSize - 1;
+  const naiveCorrect = baseline.bestScore === windowSize && predictedStep === targetStep;
+
+  const workRatio = vsaScoredLocations > 0 ? baseline.comparisons / vsaScoredLocations : null;
+  const vsaCorrect = targetLocKey != null && winner?.value === targetLocKey;
+
+  return {
+    targetStep,
+    windowSize,
+    noiseRate,
+    vsaTimeMs,
+    naiveTimeMs,
+    vsaScoredLocations,
+    vsaPerTokenCandidates,
+    naiveComparisons: baseline.comparisons,
+    workRatio,
+    vsaCorrect,
+    naiveCorrect,
+    targetLocKey,
+    vsaWinnerLocKey: winner?.value ?? null,
+    naiveBestScore: baseline.bestScore
+  };
+}
+
 async function handleQuery(payload) {
   const type = payload.type;
   const entity = payload.entity;
@@ -400,85 +526,123 @@ async function handleQuery(payload) {
   const location = payload.location;
   const targetStep = parseTargetStep(payload.step);
 
-  if (!history.length) return 'No events yet.';
+  if (!history.length) {
+    lastQueryStats = null;
+    return { answerText: 'No events yet.', metrics: null };
+  }
 
   const snapshot = stateAtStep(targetStep);
+  const metrics = computeLocalizationMetrics(targetStep, payload);
 
   if (type === 'where' || type === 'whereAt') {
-    if (!snapshot.entities[entity]) return `Unknown entity: ${entity}`;
+    if (!snapshot.entities[entity]) {
+      lastQueryStats = metrics;
+      return { answerText: `Unknown entity: ${entity}`, metrics };
+    }
     const loc = snapshot.entities[entity].location ?? 'unknown';
-    return `${entity} is at ${loc} (step ${targetStep}).`;
+    lastQueryStats = metrics;
+    return { answerText: `${entity} is at ${loc} (step ${targetStep}).`, metrics };
   }
 
   if (type === 'entitiesAt') {
     const list = Object.entries(snapshot.entities)
       .filter(([, data]) => data.location === location)
       .map(([id]) => id);
-    return list.length > 0 ? `${location}: ${list.join(', ')}` : `${location}: nobody.`;
+    lastQueryStats = metrics;
+    return { answerText: (list.length > 0 ? `${location}: ${list.join(', ')}` : `${location}: nobody.`), metrics };
   }
 
   if (type === 'inventory') {
     const inv = snapshot.entities[entity]?.inventory ?? null;
-    if (!inv) return `Unknown entity: ${entity}`;
-    return inv.length > 0 ? `${entity} has ${inv.join(', ')}` : `${entity} has nothing.`;
+    if (!inv) {
+      lastQueryStats = metrics;
+      return { answerText: `Unknown entity: ${entity}`, metrics };
+    }
+    lastQueryStats = metrics;
+    return { answerText: (inv.length > 0 ? `${entity} has ${inv.join(', ')}` : `${entity} has nothing.`), metrics };
   }
 
   if (type === 'whoHas') {
     const holder = snapshot.items[item]?.heldBy ?? null;
-    return holder ? `${item} is held by ${holder}.` : `${item} is not held.`;
+    lastQueryStats = metrics;
+    return { answerText: (holder ? `${item} is held by ${holder}.` : `${item} is not held.`), metrics };
   }
 
   if (type === 'itemLocation') {
     const itemState = snapshot.items[item];
-    if (!itemState) return `Unknown item: ${item}`;
-    if (itemState.heldBy) return `${item} is held by ${itemState.heldBy}.`;
-    if (itemState.location) return `${item} is at ${itemState.location}.`;
-    return `${item} location unknown.`;
+    if (!itemState) {
+      lastQueryStats = metrics;
+      return { answerText: `Unknown item: ${item}`, metrics };
+    }
+    let answerText = `${item} location unknown.`;
+    if (itemState.heldBy) answerText = `${item} is held by ${itemState.heldBy}.`;
+    else if (itemState.location) answerText = `${item} is at ${itemState.location}.`;
+    lastQueryStats = metrics;
+    return { answerText, metrics };
   }
 
   if (type === 'isAlive') {
     const alive = snapshot.entities[entity]?.alive;
-    if (alive == null) return `Unknown entity: ${entity}`;
-    return alive ? `${entity} is alive.` : `${entity} is dead.`;
+    if (alive == null) {
+      lastQueryStats = metrics;
+      return { answerText: `Unknown entity: ${entity}`, metrics };
+    }
+    lastQueryStats = metrics;
+    return { answerText: (alive ? `${entity} is alive.` : `${entity} is dead.`), metrics };
   }
 
   if (type === 'lastEvent') {
     const events = history.filter((entry) => entry.event.subject === entity);
-    if (events.length === 0) return `${entity} has no events.`;
+    if (events.length === 0) {
+      lastQueryStats = metrics;
+      return { answerText: `${entity} has no events.`, metrics };
+    }
     const last = events[events.length - 1];
-    return `Last: #${last.step} ${last.text}`;
+    lastQueryStats = metrics;
+    return { answerText: `Last: #${last.step} ${last.text}`, metrics };
   }
 
   if (type === 'timeline') {
     const limit = Math.max(1, Math.min(20, Number(payload.limit) || 6));
     const events = history.filter((entry) => entry.event.subject === entity).slice(-limit);
-    if (!events.length) return `${entity} has no events.`;
-    return events.map((entry) => `#${entry.step} ${entry.text}`).join('\n');
+    if (!events.length) {
+      lastQueryStats = metrics;
+      return { answerText: `${entity} has no events.`, metrics };
+    }
+    lastQueryStats = metrics;
+    return { answerText: events.map((entry) => `#${entry.step} ${entry.text}`).join('\n'), metrics };
   }
 
   if (type === 'contradictions') {
-    return formatContradictionsText();
+    lastQueryStats = metrics;
+    return { answerText: formatContradictionsText(), metrics };
   }
 
   if (type === 'contradictionsFor') {
     const list = contradictions.filter((entry) => entry.text.startsWith(entity));
-    if (list.length === 0) return `No contradictions for ${entity}.`;
-    return list.map((entry) => `#${entry.step} ${entry.text} → ${entry.reasons.join(', ')}`).join('\n');
+    const answerText = list.length === 0
+      ? `No contradictions for ${entity}.`
+      : list.map((entry) => `#${entry.step} ${entry.text} → ${entry.reasons.join(', ')}`).join('\n');
+    lastQueryStats = metrics;
+    return { answerText, metrics };
   }
 
-  return 'Unknown query.';
+  lastQueryStats = metrics;
+  return { answerText: 'Unknown query.', metrics };
 }
 
 async function getStatePayload() {
   const state = brain.getState();
   return {
     step: state.step,
+    numColumns: currentConfig.numColumns,
     columns: state.columns.map((column) => column.location),
     mapConfig: currentConfig.mapConfig,
     history: history.map((entry) => ({ locations: entry.locations })),
     contradictionsCount: contradictions.length,
     storyText: formatStoryText(),
     contradictionsText: formatContradictionsText(),
+    lastQueryStats,
     world: {
       entities: world?.entities ?? [],
       locations: world?.locations ?? [],
@@ -523,8 +687,28 @@ async function handleApi(req, res, url) {
   if (req.method === 'POST' && url.pathname === '/api/query') {
     try {
       const body = await readJson(req);
-      const answerText = await handleQuery(body);
-      return sendJson(res, 200, { ok: true, answerText });
+      const result = await handleQuery(body);
+      return sendJson(res, 200, { ok: true, ...result });
+    } catch (err) {
+      return sendError(res, 500, err.message);
+    }
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/config') {
+    try {
+      const body = await readJson(req);
+      const nextColumns = Number(body.numColumns);
+      const numColumns = Number.isFinite(nextColumns)
+        ? Math.max(1, Math.min(9, Math.floor(nextColumns)))
+        : currentConfig.numColumns;
+      const events = history.map((entry) => entry.event);
+      const seed = world?.seed;
+      initDemo({ seed, numColumns });
+      for (const event of events) {
+        await addEvent(event);
+      }
+      const payload = await getStatePayload();
+      return sendJson(res, 200, { ok: true, state: payload });
     } catch (err) {
       return sendError(res, 500, err.message);
     }
@@ -535,7 +719,7 @@ async function handleApi(req, res, url) {
       const body = await readJson(req);
       const mode = body.mode === 'contradicting' ? 'contradicting' : 'consistent';
       lastMode = mode;
-      initDemo({ seed: body.seed });
+      initDemo({ seed: body.seed, numColumns: body.numColumns });
       await generateEvents(body.length ?? 32, body.seed ?? world.seed, mode === 'contradicting');
       const payload = await getStatePayload();
       return sendJson(res, 200, { ok: true, state: payload });

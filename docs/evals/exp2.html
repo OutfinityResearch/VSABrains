@@ -1,0 +1,29 @@
+<div class="section">
+  <h2>Experiment 2: Narrative Coherence</h2>
+  <p>
+    Goal: track state over long stories without collapse. This includes coreference resolution,
+    repetitive motifs, and the ability to localize earlier parts of a narrative through replay.
+  </p>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Metric</th>
+        <th>Value</th>
+        <th>Target</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>State Accuracy</td><td>1.00</td><td>&gt; 0.85</td><td><span class="status-pill status-pass">Pass</span></td></tr>
+      <tr><td>Motif Handling</td><td>1.00</td><td>&gt; 0.75</td><td><span class="status-pill status-pass">Pass</span></td></tr>
+      <tr><td>Coref Resolution</td><td>1.00</td><td>&gt; 0.90</td><td><span class="status-pill status-pass">Pass</span></td></tr>
+      <tr><td>Time Localization</td><td>1.00</td><td>&gt; 0.80</td><td><span class="status-pill status-pass">Pass</span></td></tr>
+      <tr><td>Conflict Detection</td><td>1.00</td><td>&gt; 0.90</td><td><span class="status-pill status-pass">Pass</span></td></tr>
+    </tbody>
+  </table>
+  <p class="note">
+    Time localization here is replay-based verification against the fast maps (not a separate learned
+    time model).
+  </p>
+</div>
+

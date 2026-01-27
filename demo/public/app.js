@@ -6,8 +6,12 @@ const generateCleanBtn = $('#generateCleanBtn');
 const generateContradictBtn = $('#generateContradictBtn');
 const addHundredBtn = $('#addHundredBtn');
 const appendMode = $('#appendMode');
+const columnsRange = $('#columnsRange');
+const columnsValue = $('#columnsValue');
+const applyColumnsBtn = $('#applyColumnsBtn');
 const statusMsg = $('#statusMsg');
 const stepValue = $('#stepValue');
+const columnsMeta = $('#columnsMeta');
 const contradictionsValue = $('#contradictionsValue');
 const tabButtons = document.querySelectorAll('.tab-btn');
 const tabPanels = document.querySelectorAll('.tab-panel');
@@ -25,6 +29,16 @@ const queryStepField = $('#queryStepField');
 const queryLimitField = $('#queryLimitField');
 const runQueryBtn = $('#runQueryBtn');
 const queryAnswer = $('#queryAnswer');
+const perfVsaTime = $('#perfVsaTime');
+const perfVsaWork = $('#perfVsaWork');
+const perfNaiveTime = $('#perfNaiveTime');
+const perfNaiveWork = $('#perfNaiveWork');
+const perfWorkRatio = $('#perfWorkRatio');
+const perfCorrectness = $('#perfCorrectness');
+const perfWinner = $('#perfWinner');
+const perfSpeedup = $('#perfSpeedup');
+const perfBarVsa = $('#perfBarVsa');
+const perfBarNaive = $('#perfBarNaive');
 
 let state = null;
 const columnColors = ['#7b8dff', '#52f2c2', '#ffb454', '#ff6bb5', '#73e2ff', '#c2ff6b'];
@@ -56,6 +70,101 @@ function setStatus(message, tone = 'error') {
   }
   statusMsg.textContent = message;
   statusMsg.style.color = tone === 'error' ? '#f7b4b4' : '#a2f5d6';
+}
+
+function formatMs(value) {
+  if (!Number.isFinite(value)) return '—';
+  if (value < 1) return `${value.toFixed(2)} ms`;
+  return `${value.toFixed(1)} ms`;
+}
+
+function formatCompact(value) {
+  if (!Number.isFinite(value)) return '—';
+  if (Math.abs(value) >= 1000) return value.toLocaleString('en-US');
+  return value.toFixed(2);
+}
+
+function updatePerf(metrics) {
+  if (!metrics) {
+    perfVsaTime.textContent = '—';
+    perfVsaWork.textContent = '—';
+    perfNaiveTime.textContent = '—';
+    perfNaiveWork.textContent = '—';
+    perfWorkRatio.textContent = '—';
+    perfCorrectness.textContent = 'Run a query';
+    if (perfWinner) perfWinner.textContent = '—';
+    if (perfWinner) perfWinner.style.color = '';
+    if (perfSpeedup) perfSpeedup.textContent = '—';
+    if (perfBarVsa) perfBarVsa.style.width = '0%';
+    if (perfBarNaive) perfBarNaive.style.width = '0%';
+    return;
+  }
+
+  perfVsaTime.textContent = formatMs(metrics.vsaTimeMs);
+  perfNaiveTime.textContent = formatMs(metrics.naiveTimeMs);
+
+  const vsaWork = Number.isFinite(metrics.vsaScoredLocations)
+    ? `${formatCompact(metrics.vsaScoredLocations)} scored`
+    : '—';
+  const perToken = Number.isFinite(metrics.vsaPerTokenCandidates)
+    ? `${formatCompact(metrics.vsaPerTokenCandidates)} / token`
+    : '';
+  perfVsaWork.textContent = [vsaWork, perToken].filter(Boolean).join('\n');
+
+  perfNaiveWork.textContent = Number.isFinite(metrics.naiveComparisons)
+    ? `${metrics.naiveComparisons.toLocaleString('en-US')} comparisons`
+    : '—';
+
+  if (metrics.note) {
+    perfWorkRatio.textContent = metrics.note;
+    perfCorrectness.textContent = `Need ≥ ${metrics.windowSize ?? 6} steps`;
+    if (perfWinner) perfWinner.textContent = 'Not enough data';
+    if (perfWinner) perfWinner.style.color = '';
+    if (perfSpeedup) perfSpeedup.textContent = 'Add more steps';
+    if (perfBarVsa) perfBarVsa.style.width = '0%';
+    if (perfBarNaive) perfBarNaive.style.width = '0%';
+    return;
+  }
+
+  perfWorkRatio.textContent = Number.isFinite(metrics.workRatio)
+    ? `~${formatCompact(metrics.workRatio)}×`
+    : '—';
+
+  const vsaCheck = metrics.vsaCorrect ? 'VSA ✓' : 'VSA ✗';
+  const naiveCheck = metrics.naiveCorrect ? 'Naive ✓' : 'Naive ✗';
+  perfCorrectness.textContent = `${vsaCheck}  •  ${naiveCheck}`;
+
+  const vsaCost = Number.isFinite(metrics.vsaScoredLocations) ? metrics.vsaScoredLocations : NaN;
+  const naiveCost = Number.isFinite(metrics.naiveComparisons) ? metrics.naiveComparisons : NaN;
+
+  if (perfWinner && perfSpeedup) {
+    if (Number.isFinite(vsaCost) && Number.isFinite(naiveCost) && vsaCost > 0 && naiveCost > 0) {
+      const ratio = naiveCost / vsaCost;
+      const vsaFaster = ratio >= 1;
+      perfWinner.textContent = vsaFaster ? 'VSABrains faster' : 'Naive faster';
+      const shownRatio = vsaFaster ? ratio : 1 / ratio;
+      perfSpeedup.textContent = `~${formatCompact(shownRatio)}×`;
+      perfWinner.style.color = vsaFaster ? '#a2f5d6' : '#f7b4b4';
+    } else {
+      perfWinner.textContent = 'Speed proxy unavailable';
+      perfSpeedup.textContent = '—';
+      perfWinner.style.color = '';
+    }
+  }
+
+  if (perfBarVsa && perfBarNaive) {
+    const safeVsa = Number.isFinite(vsaCost) ? vsaCost : 0;
+    const safeNaive = Number.isFinite(naiveCost) ? naiveCost : 0;
+    const maxCost = Math.max(safeVsa, safeNaive, 1);
+    const denom = Math.log10(maxCost + 1);
+    const scaleWidth = (cost) => {
+      if (!Number.isFinite(cost) || denom <= 0) return 0;
+      const pct = (Math.log10(cost + 1) / denom) * 100;
+      return Math.max(6, Math.min(100, pct));
+    };
+    perfBarVsa.style.width = `${scaleWidth(vsaCost)}%`;
+    perfBarNaive.style.width = `${scaleWidth(naiveCost)}%`;
+  }
 }
 
 function drawGrid() {
@@ -126,9 +235,16 @@ function drawGrid() {
 function updateUI() {
   if (!state) return;
   stepValue.textContent = `Step ${state.step ?? 0}`;
+  const cols = state.numColumns ?? state.columns?.length ?? 1;
+  columnsMeta.textContent = `Columns: ${cols}`;
+  if (columnsRange && columnsValue) {
+    columnsRange.value = String(cols);
+    columnsValue.textContent = String(cols);
+  }
   contradictionsValue.textContent = `Contradictions: ${state.contradictionsCount ?? 0}`;
   storyField.value = state.storyText ?? '';
   drawGrid();
+  updatePerf(state.lastQueryStats ?? null);
 }
 
 async function refreshState() {
@@ -149,7 +265,10 @@ async function generateWorld() {
     const result = await fetchJson('/api/story/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mode: 'consistent' })
+      body: JSON.stringify({
+        mode: 'consistent',
+        numColumns: Number(columnsRange?.value ?? state?.numColumns ?? 3)
+      })
     });
     state = result.state;
     updateUI();
@@ -182,7 +301,10 @@ async function generateContradictingStory() {
     const result = await fetchJson('/api/story/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mode: 'contradicting' })
+      body: JSON.stringify({
+        mode: 'contradicting',
+        numColumns: Number(columnsRange?.value ?? state?.numColumns ?? 3)
+      })
     });
     state = result.state;
     updateUI();
@@ -219,13 +341,35 @@ function updateQueryFields() {
   queryLimitField.style.display = showLimit ? 'block' : 'none';
 }
 
+async function applyColumns() {
+  try {
+    setStatus('');
+    if (applyColumnsBtn) applyColumnsBtn.disabled = true;
+    const numColumns = Number(columnsRange?.value ?? state?.numColumns ?? 3);
+    const result = await fetchJson('/api/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ numColumns })
+    });
+    state = result.state;
+    updateUI();
+    setStatus(`Reconfigured to ${numColumns} columns.`, 'success');
+  } catch (err) {
+    setStatus(err.message);
+  } finally {
+    if (applyColumnsBtn) applyColumnsBtn.disabled = false;
+  }
+}
+
 async function runQuery() {
   try {
     const payload = {
       type: queryType.value,
       entity: queryEntity.value,
       item: queryItem.value,
-      location: queryLocation.value
+      location: queryLocation.value,
+      windowSize: 6,
+      noiseRate: 0.25
     };
     if (queryStepField.style.display !== 'none' && queryStep.value !== '') {
       payload.step = Number(queryStep.value);
@@ -239,8 +383,10 @@ async function runQuery() {
       body: JSON.stringify(payload)
     });
     queryAnswer.value = result.answerText ?? '';
+    updatePerf(result.metrics ?? null);
   } catch (err) {
     queryAnswer.value = err.message;
+    updatePerf(null);
   }
 }
 
@@ -248,6 +394,12 @@ function attachEvents() {
   generateCleanBtn.addEventListener('click', generateWorld);
   generateContradictBtn.addEventListener('click', generateContradictingStory);
   addHundredBtn.addEventListener('click', addHundredActions);
+  if (columnsRange && columnsValue) {
+    columnsRange.addEventListener('input', () => {
+      columnsValue.textContent = columnsRange.value;
+    });
+  }
+  if (applyColumnsBtn) applyColumnsBtn.addEventListener('click', applyColumns);
   tabButtons.forEach((btn) => btn.addEventListener('click', () => setTab(btn.dataset.tab)));
   queryType.addEventListener('change', updateQueryFields);
   runQueryBtn.addEventListener('click', runQuery);

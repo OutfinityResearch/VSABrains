@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 220" role="img" aria-label="Query flow diagram">
+  <defs>
+    <marker id="arrow-query" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0f172a"></path>
+    </marker>
+    <style>
+      .frame { fill: #ffffff; stroke: rgba(0,0,0,0.08); stroke-width: 2; rx: 12; ry: 12; }
+      .box { fill: #ffffff; stroke: #0f172a; stroke-width: 1.5; rx: 10; ry: 10; }
+      .opt { fill: #f8fafc; stroke: #cbd5e1; stroke-width: 1.2; rx: 8; ry: 8; }
+      .title { font: 600 14px system-ui, -apple-system, Segoe UI, Roboto, sans-serif; fill: #0f172a; }
+      .label { font: 500 12px system-ui, -apple-system, Segoe UI, Roboto, sans-serif; fill: #334155; }
+      .arrow { stroke: #0f172a; stroke-width: 1.8; fill: none; marker-end: url(#arrow-query); }
+    </style>
+  </defs>
+
+  <rect class="frame" x="6" y="6" width="968" height="208"></rect>
+
+  <rect class="box" x="20" y="28" width="210" height="54"></rect>
+  <text class="title" x="125" y="50" text-anchor="middle">Question + Window</text>
+  <text class="label" x="125" y="68" text-anchor="middle">windowStepTokenIds</text>
+
+  <path class="arrow" d="M 230 55 L 280 55"></path>
+
+  <rect class="box" x="280" y="28" width="180" height="54"></rect>
+  <text class="title" x="370" y="50" text-anchor="middle">Localize</text>
+  <text class="label" x="370" y="68" text-anchor="middle">top-K candidates</text>
+
+  <path class="arrow" d="M 460 55 L 510 55"></path>
+
+  <rect class="opt" x="510" y="18" width="200" height="74"></rect>
+  <text class="title" x="610" y="40" text-anchor="middle">Verify (optional)</text>
+  <text class="label" x="610" y="60" text-anchor="middle">replay + constraints</text>
+
+  <path class="arrow" d="M 710 55 L 760 55"></path>
+
+  <rect class="opt" x="760" y="18" width="200" height="74"></rect>
+  <text class="title" x="860" y="40" text-anchor="middle">Retrieve (DS005)</text>
+  <text class="label" x="860" y="60" text-anchor="middle">facts / chunks</text>
+
+  <path class="arrow" d="M 860 92 L 860 140"></path>
+
+  <rect class="box" x="660" y="140" width="300" height="62"></rect>
+  <text class="title" x="810" y="164" text-anchor="middle">Reason + Verify</text>
+  <text class="label" x="810" y="184" text-anchor="middle">verdict + evidence</text>
+</svg>
+

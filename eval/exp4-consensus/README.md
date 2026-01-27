@@ -9,8 +9,14 @@ This experiment is designed to highlight the architectural advantage of **multi-
 - **baselineAcc**: naive list-scan accuracy (content matching only).
 - **baselineComparisonsPerQuery**: approximate cost of list scanning.
 - **vsaApproxBytesLowerBound**: lower-bound storage proxy for VSA cells (non-empty cells × k × entryBytes).
+- **locationIndexEntriesAvg**: average number of location-index entries across columns.
+- **locationIndexApproxBytesLowerBound**: lower-bound storage proxy for the location index.
+- **vsaTotalApproxBytesLowerBound**: map proxy + location-index proxy.
 - **baselineApproxBytesLowerBound**: lower-bound storage proxy for list baseline (tokens × tokenBytes).
 - **baselineMatchThreshold**: minimum exact matches required by the naive list baseline (defaults to full window size).
+- **vsaPerTokenCandidatesAvg**: average index candidates per token per column (proxy for index “width”).
+- **vsaScoredLocationsPerQueryAvg**: total candidate locations scored per query across columns.
+- **vsaVsBaselineWorkRatio**: baseline comparisons per query ÷ VSA scored locations per query.
 - **consensusAcc**: majority vote across columns.
 - **consensusGainOverSingle / consensusGainOverBest / consensusGainOverBaseline**: improvement from consensus.
 
@@ -27,3 +33,9 @@ node eval/exp4-consensus/run.mjs
 ```
 
 You can adjust parameters in the run call (numColumns, noiseRate, seqLength, etc.).
+
+## Compression Sweep
+
+```
+node eval/exp4-consensus/compression-sweep.mjs
+```

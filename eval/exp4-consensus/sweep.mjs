@@ -33,7 +33,9 @@ async function runSweep() {
         baselineAcc: metrics.baselineAcc ?? 0,
         gainVsSingle: metrics.consensusGainOverSingle ?? 0,
         gainVsBaseline: metrics.consensusGainOverBaseline ?? 0,
-        comparisonsPerQuery: metrics.baselineComparisonsPerQuery ?? 0
+        comparisonsPerQuery: metrics.baselineComparisonsPerQuery ?? 0,
+        vsaScoredLocationsPerQuery: metrics.vsaScoredLocationsPerQueryAvg ?? 0,
+        vsaVsBaselineWorkRatio: metrics.vsaVsBaselineWorkRatio ?? 0
       });
     }
   }
@@ -52,4 +54,3 @@ async function runSweep() {
 if (import.meta.url === `file://${process.argv[1]}`) {
   await runSweep();
 }
-

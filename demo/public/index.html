@@ -22,6 +22,15 @@
         <div class="topbar-actions">
           <button class="btn ghost" id="generateCleanBtn">Generate Clean Story</button>
           <button class="btn primary" id="generateContradictBtn">Generate Contradicting Story</button>
+          <div class="columns-control">
+            <label for="columnsRange">Columns</label>
+            <div class="columns-row">
+              <input type="range" id="columnsRange" min="1" max="9" step="1" value="3" />
+              <div class="columns-value" id="columnsValue">3</div>
+              <button class="btn ghost" id="applyColumnsBtn">Apply</button>
+            </div>
+            <div class="columns-note">Rebuilds the brain and replays the story.</div>
+          </div>
           <div class="append-mode">
             <label for="appendMode">Append Mode</label>
             <select id="appendMode">
@@ -51,6 +60,7 @@
           </div>
           <div class="grid-meta">
             <span id="stepValue">Step 0</span>
+            <span id="columnsMeta">Columns: 3</span>
             <span id="contradictionsValue">Contradictions: 0</span>
           </div>
         </section>
@@ -105,6 +115,31 @@
           <div class="story-block">
             <label for="queryAnswer">Answer</label>
             <textarea id="queryAnswer" rows="8" readonly></textarea>
+          </div>
+
+          <div class="perf-block">
+            <div class="perf-title">Query Performance (Proxy)</div>
+            <div class="perf-compare">
+              <div class="perf-compare-title">Faster (shorter bar = better)</div>
+              <div class="perf-bars">
+                <div class="perf-bar">
+                  <div class="perf-bar-label">VSABrains</div>
+                  <div class="perf-bar-track">
+                    <div class="perf-bar-fill vsa" id="perfBarVsa">
+                      <span class="perf-bar-value" id="perfBarVsaValue">—</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="perf-bar">
+                  <div class="perf-bar-label">Naive List</div>
+                  <div class="perf-bar-track">
+                    <div class="perf-bar-fill naive" id="perfBarNaive">
+                      <span class="perf-bar-value" id="perfBarNaiveValue">—</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div class="status" id="statusMsg"></div>

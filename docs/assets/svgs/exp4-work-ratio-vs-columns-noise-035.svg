@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 320" role="img" aria-label="Baseline work ratio versus columns at noise 0.35">
+  <defs>
+    <style>
+      .frame { fill: #ffffff; stroke: rgba(0,0,0,0.08); stroke-width: 2; rx: 12; ry: 12; }
+      .axis { stroke: #0f172a; stroke-width: 1.6; }
+      .grid { stroke: #e5e7eb; stroke-width: 1; }
+      .label { font: 12px system-ui, -apple-system, Segoe UI, Roboto, sans-serif; fill: #334155; }
+      .title { font: 600 14px system-ui, -apple-system, Segoe UI, Roboto, sans-serif; fill: #0f172a; }
+      .bar { fill: #2563eb; opacity: 0.94; }
+      .bar1 { fill: #1d4ed8; opacity: 0.98; }
+      .value { font: 600 12px system-ui, -apple-system, Segoe UI, Roboto, sans-serif; fill: #0f172a; }
+    </style>
+  </defs>
+
+  <rect class="frame" x="6" y="6" width="968" height="308"></rect>
+  <text class="title" x="490" y="26" text-anchor="middle">Naive scan work ÷ VSA work (noise = 0.35, log scale)</text>
+
+  <line class="axis" x1="120" y1="40" x2="120" y2="240"></line>
+  <line class="axis" x1="120" y1="240" x2="900" y2="240"></line>
+
+  <line class="grid" x1="120" y1="240" x2="900" y2="240"></line>
+  <line class="grid" x1="120" y1="178" x2="900" y2="178"></line>
+  <line class="grid" x1="120" y1="116" x2="900" y2="116"></line>
+  <line class="grid" x1="120" y1="54" x2="900" y2="54"></line>
+
+  <text class="label" x="108" y="244" text-anchor="end">100</text>
+  <text class="label" x="108" y="182" text-anchor="end">200</text>
+  <text class="label" x="108" y="120" text-anchor="end">400</text>
+  <text class="label" x="108" y="58" text-anchor="end">1000</text>
+  <text class="label" x="28" y="140" text-anchor="middle" transform="rotate(-90 28 140)">work ratio (baseline ÷ VSA)</text>
+  <text class="label" x="490" y="294" text-anchor="middle">number of columns</text>
+
+  <rect class="bar1" x="170" y="54" width="100" height="186"></rect>
+  <text class="value" x="220" y="48" text-anchor="middle">862×</text>
+  <text class="label" x="220" y="266" text-anchor="middle">1</text>
+
+  <rect class="bar" x="310" y="127" width="100" height="113"></rect>
+  <text class="value" x="360" y="121" text-anchor="middle">368×</text>
+  <text class="label" x="360" y="266" text-anchor="middle">3</text>
+
+  <rect class="bar" x="450" y="169" width="100" height="71"></rect>
+  <text class="value" x="500" y="163" text-anchor="middle">226×</text>
+  <text class="label" x="500" y="266" text-anchor="middle">5</text>
+
+  <rect class="bar" x="590" y="198" width="100" height="42"></rect>
+  <text class="value" x="640" y="192" text-anchor="middle">163×</text>
+  <text class="label" x="640" y="266" text-anchor="middle">7</text>
+
+  <rect class="bar" x="730" y="220" width="100" height="20"></rect>
+  <text class="value" x="780" y="214" text-anchor="middle">125×</text>
+  <text class="label" x="780" y="266" text-anchor="middle">9</text>
+</svg>
+

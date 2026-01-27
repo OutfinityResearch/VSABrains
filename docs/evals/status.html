@@ -28,6 +28,31 @@
       .muted { color: rgba(0,0,0,0.6); }
       .section + .section { margin-top: 24px; }
       .note { font-size: 13px; color: rgba(0,0,0,0.65); }
+      .eval-nav { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+      .eval-button {
+        border: 1px solid rgba(0,0,0,0.15);
+        background: rgba(0,0,0,0.03);
+        color: inherit;
+        padding: 8px 12px;
+        border-radius: 10px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .eval-button[aria-selected="true"] {
+        border-color: #0f172a;
+        background: #0f172a;
+        color: white;
+      }
+      .eval-content { margin-top: 6px; }
+      .loading { padding: 6px 0; }
+      .eval-error {
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid rgba(180, 30, 30, 0.3);
+        background: rgba(180, 30, 30, 0.08);
+        color: #7a1f1f;
+        font-size: 14px;
+      }
     </style>
   </head>
   <body>
@@ -53,120 +78,29 @@
             Last full run: 2026-01-26T20:45:03Z. DS003 success criteria are met under the current evaluation configuration.
           </p>
           <p class="note">
+            Recent updates: Exp4 consensus, work proxies, and compression sweep were refreshed on 2026-01-27.
+          </p>
+          <p class="note">
             Evaluation configuration notes: Exp2 time localization is measured via replay-based window verification against fast maps (not through a separate learned time model). Exp3 uses a deterministic extractor stub (no external LLM), so extractor stability and latency under real LLMs are not yet validated.
           </p>
         </div>
 
         <div class="section">
-          <h2>Experiment 1: Reference-Frame Alignment</h2>
-          <table class="table">
-            <thead>
-              <tr>
-                <th>Metric</th>
-                <th>Value</th>
-                <th>Target</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr><td>Loc@1 (clean)</td><td>1.00</td><td>&gt; 0.85</td><td><span class="status-pill status-pass">Pass</span></td></tr>
-              <tr><td>Loc@5 (clean)</td><td>1.00</td><td>&gt; 0.95</td><td><span class="status-pill status-pass">Pass</span></td></tr>
-              <tr><td>Consensus Gain</td><td>0.103</td><td>&gt; 0.05</td><td><span class="status-pill status-pass">Pass</span></td></tr>
-              <tr><td>Noise Robustness (10%)</td><td>1.00</td><td>&gt; 0.90</td><td><span class="status-pill status-pass">Pass</span></td></tr>
-              <tr><td>Ambiguous Disambiguation</td><td>1.00</td><td>&gt; 0.70</td><td><span class="status-pill status-pass">Pass</span></td></tr>
-            </tbody>
-          </table>
+          <h2>Experiments</h2>
+          <p class="note">
+            Click an experiment to load its dedicated page with context, interpretation, and visuals.
+          </p>
+          <div class="eval-nav" role="tablist" aria-label="Evaluation experiments">
+            <button class="eval-button" data-doc="exp1.html" role="tab" aria-selected="false">Exp 1: Alignment</button>
+            <button class="eval-button" data-doc="exp2.html" role="tab" aria-selected="false">Exp 2: Narrative</button>
+            <button class="eval-button" data-doc="exp3.html" role="tab" aria-selected="false">Exp 3: Grounded RAG</button>
+            <button class="eval-button" data-doc="exp4.html" role="tab" aria-selected="true">Exp 4: Consensus vs List</button>
+            <button class="eval-button" data-doc="optimizations.html" role="tab" aria-selected="false">Optimizations</button>
+          </div>
         </div>
 
-        <div class="section">
-          <h2>Experiment 2: Narrative Coherence</h2>
-          <table class="table">
-            <thead>
-              <tr>
-                <th>Metric</th>
-                <th>Value</th>
-                <th>Target</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr><td>State Accuracy</td><td>1.00</td><td>&gt; 0.85</td><td><span class="status-pill status-pass">Pass</span></td></tr>
-              <tr><td>Motif Handling</td><td>1.00</td><td>&gt; 0.75</td><td><span class="status-pill status-pass">Pass</span></td></tr>
-              <tr><td>Coref Resolution</td><td>1.00</td><td>&gt; 0.90</td><td><span class="status-pill status-pass">Pass</span></td></tr>
-              <tr><td>Time Localization</td><td>1.00</td><td>&gt; 0.80</td><td><span class="status-pill status-pass">Pass</span></td></tr>
-              <tr><td>Conflict Detection</td><td>1.00</td><td>&gt; 0.90</td><td><span class="status-pill status-pass">Pass</span></td></tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div class="section">
-          <h2>Experiment 3: Grounded RAG</h2>
-          <table class="table">
-            <thead>
-              <tr>
-                <th>Metric</th>
-                <th>Value</th>
-                <th>Target</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr><td>Supported Precision</td><td>1.00</td><td>&gt; 0.95</td><td><span class="status-pill status-pass">Pass</span></td></tr>
-              <tr><td>Supported Recall</td><td>1.00</td><td>&gt; 0.85</td><td><span class="status-pill status-pass">Pass</span></td></tr>
-              <tr><td>Refusal Accuracy</td><td>1.00</td><td>&gt; 0.90</td><td><span class="status-pill status-pass">Pass</span></td></tr>
-              <tr><td>Conflict Precision/Recall</td><td>1.00 / 1.00</td><td>&gt; 0.85 / &gt; 0.80</td><td><span class="status-pill status-pass">Pass</span></td></tr>
-              <tr><td>Chain Correctness</td><td>1.00</td><td>&gt; 0.90</td><td><span class="status-pill status-pass">Pass</span></td></tr>
-              <tr><td>Extraction Consistency</td><td>1.00</td><td>&gt;= 0.80</td><td><span class="status-pill status-pass">Pass</span></td></tr>
-              <tr><td>Predicate Coverage</td><td>1.00</td><td>100%</td><td><span class="status-pill status-pass">Pass</span></td></tr>
-            </tbody>
-          </table>
-          <p class="note">Exp3 uses a deterministic extractor stub for evaluation consistency; real LLM extraction quality and variance remain untested.</p>
-        </div>
-
-        <div class="section">
-          <h2>Experiment 4: Consensus vs Naive List</h2>
-          <table class="table">
-            <thead>
-              <tr>
-                <th>Metric</th>
-                <th>Value</th>
-                <th>Target</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr><td>Consensus Acc</td><td>0.992</td><td>&gt; 0.90</td><td><span class="status-pill status-pass">Pass</span></td></tr>
-              <tr><td>Single Column Acc</td><td>0.769</td><td class="muted">—</td><td><span class="status-pill status-partial">Baseline</span></td></tr>
-              <tr><td>Best Column Acc</td><td>0.780</td><td class="muted">—</td><td><span class="status-pill status-partial">Baseline</span></td></tr>
-              <tr><td>Naive List Acc</td><td>0.183</td><td class="muted">—</td><td><span class="status-pill status-partial">Baseline</span></td></tr>
-              <tr><td>Consensus Gain (vs Single)</td><td>0.224</td><td>&gt; 0.05</td><td><span class="status-pill status-pass">Pass</span></td></tr>
-              <tr><td>Consensus Gain (vs Naive)</td><td>0.809</td><td>&gt; 0.05</td><td><span class="status-pill status-pass">Pass</span></td></tr>
-              <tr><td>List Comparisons / Query</td><td>1,188</td><td class="muted">Linear scan</td><td><span class="status-pill status-pass">Expected</span></td></tr>
-              <tr><td>VSA Storage (lower bound)</td><td>103,040 bytes</td><td class="muted">Proxy</td><td><span class="status-pill status-partial">Proxy</span></td></tr>
-              <tr><td>List Storage (lower bound)</td><td>1,600 bytes</td><td class="muted">Proxy</td><td><span class="status-pill status-partial">Proxy</span></td></tr>
-            </tbody>
-          </table>
-          <p class="note">Last run: 2026-01-27T12:06:26Z. Noise rate 0.25, window size 6, columns 5, baselineMatchThreshold=6 (exact match).</p>
-          <p class="note">Storage numbers are conservative lower bounds (fixed-width assumptions only). The baseline uses a strict exact-match scan; consensus uses noisy windows per column.</p>
-          <h3>Consensus Sweep (Columns × Noise)</h3>
-          <table class="table">
-            <thead>
-              <tr>
-                <th>Noise</th>
-                <th>Cols=1 Acc</th>
-                <th>Cols=5 Acc</th>
-                <th>Cols=5 Gain</th>
-                <th>Cols=9 Acc</th>
-                <th>Cols=9 Gain</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr><td>0.15</td><td>0.939</td><td>0.997</td><td>+0.146</td><td>1.000</td><td>+0.151</td></tr>
-              <tr><td>0.25</td><td>0.901</td><td>0.992</td><td>+0.224</td><td>1.000</td><td>+0.276</td></tr>
-              <tr><td>0.35</td><td>0.852</td><td>0.976</td><td>+0.335</td><td>1.000</td><td>+0.312</td></tr>
-            </tbody>
-          </table>
-          <p class="note">Sweep run: 2026-01-27T12:35:12Z. See eval/exp4-consensus/sweep.mjs for configuration.</p>
+        <div id="eval-content" class="eval-content" aria-live="polite">
+          <p class="note loading">Loading experiment…</p>
         </div>
 
         <div class="section">
@@ -192,13 +126,43 @@
               </tr>
               <tr>
                 <td>Compression Sweep</td>
-                <td>Compression proxy uses slow-map window size; no semantic compression applied.</td>
-                <td>Threshold results are indicative only.</td>
+                <td>Compression sweep now covers grid size and heavy-hitters <code>k</code>, but only on Exp4 proxies.</td>
+                <td>Compression effects on Exp1/Exp2 and real memory usage remain unvalidated.</td>
               </tr>
             </tbody>
           </table>
         </div>
       </main>
+
+      <script>
+        const buttons = Array.from(document.querySelectorAll('.eval-button'));
+        const content = document.getElementById('eval-content');
+
+        async function loadDoc(doc, clickedButton = null) {
+          if (!content) return;
+          content.innerHTML = '<p class="note loading">Loading experiment…</p>';
+
+          try {
+            const res = await fetch(doc, { cache: 'no-store' });
+            if (!res.ok) throw new Error(`Failed to load ${doc}: ${res.status}`);
+            const html = await res.text();
+            content.innerHTML = html;
+          } catch (err) {
+            content.innerHTML = `<div class="eval-error">Could not load <code>${doc}</code>. ${err.message}</div>`;
+          }
+
+          for (const btn of buttons) {
+            const isActive = btn === clickedButton || (!clickedButton && btn.dataset.doc === doc);
+            btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+          }
+        }
+
+        for (const btn of buttons) {
+          btn.addEventListener('click', () => loadDoc(btn.dataset.doc, btn));
+        }
+
+        loadDoc('exp4.html');
+      </script>
 
       <footer class="footer">
         Status page generated from the latest eval outputs and DS003 success criteria.
