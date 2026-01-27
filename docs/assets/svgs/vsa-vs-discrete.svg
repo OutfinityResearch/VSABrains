@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="420" viewBox="0 0 980 420" role="img" aria-labelledby="title desc">
+  <title id="title">VSA superposition versus VSABrains addressable trajectories</title>
+  <desc id="desc">Left panel shows many events superposed into one vector, which blurs order. Right panel shows events written along a discrete path with an index, preserving order as address.</desc>
+  <rect width="980" height="420" fill="#ffffff"/>
+
+  <text x="40" y="54" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="26" font-weight="700" fill="#0f172a">
+    Two ways to store a long story
+  </text>
+
+  <g transform="translate(40,90)">
+    <rect x="0" y="0" width="430" height="290" rx="18" fill="#f8fafc" stroke="#e2e8f0"/>
+    <text x="24" y="36" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="18" font-weight="700" fill="#0f172a">
+      VSA-style superposition
+    </text>
+    <text x="24" y="62" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="13" fill="#475569">
+      Many steps collapse into one shared vector
+    </text>
+
+    <rect x="24" y="90" width="382" height="120" rx="14" fill="#0f172a"/>
+    <text x="215" y="134" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace" font-size="16" fill="#e2e8f0">
+      V = A + B + C + D + ...
+    </text>
+    <text x="215" y="162" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="13" fill="#cbd5e1">
+      Order must be recovered indirectly
+    </text>
+
+    <text x="24" y="246" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="13" fill="#0f172a">
+      Strength: compact algebra
+    </text>
+    <text x="24" y="268" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="13" fill="#0f172a">
+      Weakness: order gets muddy at long length
+    </text>
+  </g>
+
+  <g transform="translate(510,90)">
+    <rect x="0" y="0" width="430" height="290" rx="18" fill="#f8fafc" stroke="#e2e8f0"/>
+    <text x="24" y="36" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="18" font-weight="700" fill="#0f172a">
+      VSABrains trajectories
+    </text>
+    <text x="24" y="62" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="13" fill="#475569">
+      Steps written along an addressable path
+    </text>
+
+    <rect x="24" y="90" width="220" height="160" rx="14" fill="#0b1220"/>
+    <rect x="24" y="90" width="220" height="160" rx="14" fill="none" stroke="#334155"/>
+
+    <circle cx="70" cy="220" r="6" fill="#7b8dff"/>
+    <circle cx="110" cy="190" r="6" fill="#52f2c2"/>
+    <circle cx="150" cy="170" r="6" fill="#ffb454"/>
+    <circle cx="190" cy="130" r="6" fill="#ff6bb5"/>
+
+    <path d="M70 220 L110 190 L150 170 L190 130" fill="none" stroke="#94a3b8" stroke-width="2.5"/>
+
+    <rect x="264" y="90" width="142" height="160" rx="12" fill="#eef2ff" stroke="#c7d2fe"/>
+    <text x="335" y="118" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#3730a3">
+      Token → locations
+    </text>
+    <text x="276" y="144" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace" font-size="11" fill="#1f2937">
+      t123 → (x,y)
+    </text>
+    <text x="276" y="164" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace" font-size="11" fill="#1f2937">
+      t456 → (x,y)
+    </text>
+    <text x="276" y="184" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace" font-size="11" fill="#1f2937">
+      t789 → (x,y)
+    </text>
+
+    <text x="24" y="246" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="13" fill="#0f172a">
+      Strength: order is an address
+    </text>
+    <text x="24" y="268" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="13" fill="#0f172a">
+      Tradeoff: more structure, more writes
+    </text>
+  </g>
+</svg>
+

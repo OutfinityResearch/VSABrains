@@ -288,6 +288,7 @@ async function runExperiment5(userConfig = {}) {
   const locationsCount = clamp(toInt(userConfig.locations, 48), 8, 128);
   const itemsCount = clamp(toInt(userConfig.items, 96), 16, 256);
   const progressEvery = clamp(toInt(userConfig.progressEvery, 100_000), 10_000, 250_000);
+  const localizationRuns = clamp(toInt(userConfig.localizationRuns, queriesCount), 1, 2_000);
 
   const mapConfig = { width: 96, height: 96, k: 4 };
   const displacement = { contextLength: 2, maxStep: 3, seed: seed ^ 0x9e3779b9, avoidZeroStep: true };
@@ -393,7 +394,8 @@ async function runExperiment5(userConfig = {}) {
     stepTokenIds,
     locKeys,
     facts,
-    seed
+    seed,
+    perfRuns: localizationRuns
   });
 
   const perType = Object.fromEntries(
@@ -416,6 +418,7 @@ async function runExperiment5(userConfig = {}) {
     config: {
       facts,
       queriesCount,
+      localizationRuns,
       numColumns,
       seed,
       checkpointInterval,
@@ -442,9 +445,9 @@ async function runExperiment5(userConfig = {}) {
   };
 }
 
-async function runLocalizationBenchmark({ brain, stepTokenIds, locKeys, facts, seed }) {
+async function runLocalizationBenchmark({ brain, stepTokenIds, locKeys, facts, seed, perfRuns }) {
   const windowSize = 6;
-  const perfRuns = 200;
+  const runs = clamp(toInt(perfRuns, 24), 1, 2_000);
   const targetStep = facts - 1;
   const windowStart = Math.max(0, targetStep - windowSize + 1);
   const cleanWindow = Array.from(stepTokenIds.slice(windowStart, targetStep + 1));
@@ -487,20 +490,20 @@ async function runLocalizationBenchmark({ brain, stepTokenIds, locKeys, facts, s
   const naiveCorrect = predictedStep === targetStep && baseline.bestScore === windowSize;
 
   const vsaStart = performance.now();
-  for (let i = 0; i < perfRuns; i += 1) {
+  for (let i = 0; i < runs; i += 1) {
     localizeOnce(false);
   }
   const vsaMs = performance.now() - vsaStart;
 
   const naiveStart = performance.now();
-  for (let i = 0; i < perfRuns; i += 1) {
+  for (let i = 0; i < runs; i += 1) {
     naiveListLocalize(list, noisyWindow);
   }
   const naiveMs = performance.now() - naiveStart;
 
   return {
     windowSize,
-    perfRuns,
+    perfRuns: runs,
     vsaSeconds: vsaMs / 1000,
     naiveSeconds: naiveMs / 1000,
     speedup: vsaMs > 0 ? naiveMs / vsaMs : null,

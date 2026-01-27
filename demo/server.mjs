@@ -15,6 +15,11 @@ const __dirname = path.dirname(__filename);
 const publicDir = path.join(__dirname, 'public');
 
 const PORT = Number(process.env.PORT ?? 8787);
+const DEFAULT_STORY_EVENTS = 1_000;
+const MAX_STORY_EVENTS = 10_000;
+const DEFAULT_PERF_RUNS = 500;
+const MAX_PERF_RUNS = 20_000;
+const MAX_COLUMNS = 9;
 
 const BASE_ENTITIES = ['Alice', 'Bob', 'Charlie', 'Dana', 'Eli', 'Mara', 'Nora', 'Iris'];
 const BASE_LOCATIONS = ['room_A', 'room_B', 'garden', 'lab', 'hall', 'library', 'kitchen', 'yard'];
@@ -38,17 +43,43 @@ const DEMO_CONFIG = {
   writePolicy: 'stepTokenOnly'
 };
 
-let currentConfig = { ...DEMO_CONFIG };
-let world = null;
-let brain = null;
-let vocab = null;
-let corefState = null;
-let history = [];
-let stepTokens = [];
-let contradictions = [];
-let storyState = null;
-let lastMode = 'consistent';
-let lastQueryStats = null;
+const sessions = new Map();
+
+function getSessionId(req) {
+  const raw = req.headers['x-session-id'];
+  if (!raw) return 'default';
+  return String(raw);
+}
+
+function createSession(id) {
+  const session = {
+    id,
+    currentConfig: { ...DEMO_CONFIG },
+    world: null,
+    brain: null,
+    vocab: null,
+    corefState: null,
+    history: [],
+    stepTokens: [],
+    contradictions: [],
+    storyState: null,
+    lastMode: 'consistent',
+    lastQueryStats: null,
+    snapshotCache: { step: -1, state: null }
+  };
+  initSession(session, {});
+  return session;
+}
+
+function getSession(req) {
+  const id = getSessionId(req);
+  let session = sessions.get(id);
+  if (!session) {
+    session = createSession(id);
+    sessions.set(id, session);
+  }
+  return session;
+}
 
 function makeRng(seed) {
   let t = seed >>> 0;
@@ -107,44 +138,69 @@ function buildWorld(seed = Date.now()) {
   return { seed, entities, locations, items, actions };
 }
 
-function initStoryState() {
+function initStoryState(session) {
   const entities = {};
   const items = {};
-  for (const id of world.entities) {
+  for (const id of session.world.entities) {
     entities[id] = { location: null, inventory: [], alive: true };
   }
-  for (const id of world.items) {
+  for (const id of session.world.items) {
     items[id] = { location: null, heldBy: null };
   }
   return { entities, items };
 }
 
-function initDemo({ seed, numColumns } = {}) {
+function resetSnapshotCache(session) {
+  session.snapshotCache = { step: -1, state: initStoryState(session) };
+}
+
+function clampColumns(session, value, fallback = session.currentConfig.numColumns) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return clamp(fallback, 1, MAX_COLUMNS);
+  return clamp(Math.floor(numeric), 1, MAX_COLUMNS);
+}
+
+function clampStoryCount(value, fallback = DEFAULT_STORY_EVENTS) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return clamp(fallback, 1, MAX_STORY_EVENTS);
+  return clamp(Math.floor(numeric), 1, MAX_STORY_EVENTS);
+}
+
+function normalizeMode(mode) {
+  return mode === 'contradicting' ? 'contradicting' : 'consistent';
+}
+
+function initSession(session, { seed, numColumns } = {}) {
   if (seed != null) {
-    world = buildWorld(seed);
-  } else if (!world) {
-    world = buildWorld();
+    session.world = buildWorld(seed);
+  } else if (!session.world) {
+    session.world = buildWorld();
   }
 
-  currentConfig = {
-    ...currentConfig,
-    numColumns: Number.isFinite(numColumns) ? Math.max(1, Math.min(9, numColumns)) : currentConfig.numColumns
+  const nextColumns = clampColumns(session, numColumns, session.currentConfig.numColumns);
+  session.currentConfig = {
+    ...DEMO_CONFIG,
+    ...session.currentConfig,
+    numColumns: nextColumns
   };
 
-  vocab = makeExp2Vocabulary();
-  corefState = makeCorefState();
-  brain = new VSABrains({
-    ...currentConfig,
-    columnOffsets: buildOffsets(currentConfig.numColumns, currentConfig.mapConfig),
+  session.vocab = makeExp2Vocabulary();
+  session.corefState = makeCorefState();
+  const vocab = session.vocab;
+  const corefState = session.corefState;
+  session.brain = new VSABrains({
+    ...session.currentConfig,
+    columnOffsets: buildOffsets(session.currentConfig.numColumns, session.currentConfig.mapConfig),
     vocabulary: vocab,
     eventToStepInput: (event) => eventToStepInput(event, vocab, corefState)
   });
 
-  history = [];
-  stepTokens = [];
-  contradictions = [];
-  storyState = initStoryState();
-  lastQueryStats = null;
+  session.history = [];
+  session.stepTokens = [];
+  session.contradictions = [];
+  session.storyState = initStoryState(session);
+  session.lastQueryStats = null;
+  resetSnapshotCache(session);
 }
 
 function describeEvent(event) {
@@ -157,10 +213,10 @@ function describeEvent(event) {
   return `${event.subject} ${event.action} ${event.object ?? ''}`.trim();
 }
 
-function detectContradictions(event) {
+function detectContradictions(session, event) {
   const reasons = [];
-  const entity = storyState.entities[event.subject];
-  const item = event.object ? storyState.items[event.object] : null;
+  const entity = session.storyState.entities[event.subject];
+  const item = event.object ? session.storyState.items[event.object] : null;
 
   if (!entity) {
     reasons.push('unknown_entity');
@@ -232,15 +288,22 @@ function applyEventToState(state, event) {
   }
 }
 
-async function addEvent(event) {
-  const reasons = detectContradictions(event);
-  applyEventToState(storyState, event);
+async function addEvent(session, event) {
+  const reasons = detectContradictions(session, event);
+  applyEventToState(session.storyState, event);
 
-  const stepInput = await brain.step({ event });
-  const state = brain.getState();
+  const stepInput = await session.brain.step({ event });
+  const state = session.brain.getState();
   const step = state.step - 1;
   const stepTokenId = stepInput?.stepTokenId ?? null;
-  if (stepTokenId != null) stepTokens.push(stepTokenId);
+  if (stepTokenId != null) session.stepTokens.push(stepTokenId);
+
+  const previousStep = step - 1;
+  if (session.snapshotCache.state && session.snapshotCache.step === previousStep) {
+    applyEventToState(session.snapshotCache.state, event);
+    session.snapshotCache.step = step;
+  }
+
   const entry = {
     step,
     event,
@@ -249,10 +312,10 @@ async function addEvent(event) {
     locations: state.columns.map((column) => column.location),
     stepTokenId
   };
-  history.push(entry);
+  session.history.push(entry);
 
   if (reasons.length > 0) {
-    contradictions.push({
+    session.contradictions.push({
       step,
       text: entry.text,
       reasons
@@ -262,28 +325,28 @@ async function addEvent(event) {
   return entry;
 }
 
-function randomEvent(rng, allowAbsurd = true) {
-  const subject = pick(rng, world.entities);
-  const action = pick(rng, world.actions).id;
+function randomEvent(session, rng, allowAbsurd = true) {
+  const subject = pick(rng, session.world.entities);
+  const action = pick(rng, session.world.actions).id;
   const actionDef = ACTION_DEFS.find((a) => a.id === action) ?? { objectType: 'none' };
 
   let object = null;
   if (actionDef.objectType === 'location') {
-    object = pick(rng, world.locations);
+    object = pick(rng, session.world.locations);
   }
   if (actionDef.objectType === 'item') {
-    object = pick(rng, world.items);
+    object = pick(rng, session.world.items);
   }
 
   if (allowAbsurd && rng() < 0.2) {
-    const deadEntities = Object.entries(storyState.entities)
+    const deadEntities = Object.entries(session.storyState.entities)
       .filter(([, data]) => data.alive === false)
       .map(([id]) => id);
     if (deadEntities.length > 0) {
       const absurdAction = pick(rng, ['moves_to', 'picks_up', 'drops']);
       let absurdObject = null;
-      if (absurdAction === 'moves_to') absurdObject = pick(rng, world.locations);
-      if (absurdAction === 'picks_up' || absurdAction === 'drops') absurdObject = pick(rng, world.items);
+      if (absurdAction === 'moves_to') absurdObject = pick(rng, session.world.locations);
+      if (absurdAction === 'picks_up' || absurdAction === 'drops') absurdObject = pick(rng, session.world.items);
       return {
         subject: pick(rng, deadEntities),
         action: absurdAction,
@@ -295,13 +358,13 @@ function randomEvent(rng, allowAbsurd = true) {
   return { subject, action, object };
 }
 
-function safeEvent(rng) {
-  const entities = world.entities;
-  const items = world.items;
-  const locations = world.locations;
+function safeEvent(session, rng) {
+  const entities = session.world.entities;
+  const items = session.world.items;
+  const locations = session.world.locations;
 
   const subject = pick(rng, entities);
-  const entity = storyState.entities[subject];
+  const entity = session.storyState.entities[subject];
   if (!entity) return { subject, action: 'enters', object: pick(rng, locations) };
 
   if (entity.alive === false) {
@@ -314,7 +377,7 @@ function safeEvent(rng) {
   }
   if (roll < 0.6) {
     const available = items.filter((id) => {
-      const item = storyState.items[id];
+      const item = session.storyState.items[id];
       return item && item.heldBy == null;
     });
     if (available.length > 0) {
@@ -328,33 +391,33 @@ function safeEvent(rng) {
   return { subject, action: 'enters', object: pick(rng, locations) };
 }
 
-async function generateEvents(count, seed, allowAbsurd = true) {
+async function generateEvents(session, count, seed, allowAbsurd = true) {
   const rng = makeRng(seed ?? Date.now());
-  const total = Math.max(1, Math.min(10_000, Number(count) || 1));
+  const total = clampStoryCount(count, DEFAULT_STORY_EVENTS);
   for (let i = 0; i < total; i += 1) {
     if (allowAbsurd) {
-      await addEvent(randomEvent(rng, true));
+      await addEvent(session, randomEvent(session, rng, true));
     } else {
-      let event = safeEvent(rng);
+      let event = safeEvent(session, rng);
       let attempts = 0;
-      while (detectContradictions(event).length > 0 && attempts < 10) {
-        event = safeEvent(rng);
+      while (detectContradictions(session, event).length > 0 && attempts < 10) {
+        event = safeEvent(session, rng);
         attempts += 1;
       }
-      await addEvent(event);
+      await addEvent(session, event);
     }
   }
 }
 
-function formatStoryText() {
+function formatStoryText(session) {
   const worldLines = [
-    `World seed: ${world.seed}`,
-    `Entities: ${world.entities.join(', ')}`,
-    `Locations: ${world.locations.join(', ')}`,
-    `Items: ${world.items.join(', ')}`,
-    `Actions: ${world.actions.map((a) => a.id).join(', ')}`
+    `World seed: ${session.world.seed}`,
+    `Entities: ${session.world.entities.join(', ')}`,
+    `Locations: ${session.world.locations.join(', ')}`,
+    `Items: ${session.world.items.join(', ')}`,
+    `Actions: ${session.world.actions.map((a) => a.id).join(', ')}`
   ];
-  const storyLines = history.map((entry) => {
+  const storyLines = session.history.map((entry) => {
     const flag = entry.reasons.length > 0 ? '⚠' : '•';
     const reasons = entry.reasons.length > 0 ? ` [${entry.reasons.join(', ')}]` : '';
     return `${flag} #${entry.step} ${entry.text}${reasons}`;
@@ -363,9 +426,9 @@ function formatStoryText() {
   return [...worldLines, '', 'Story:', ...storyLines].join('\n');
 }
 
-function formatContradictionsText() {
-  if (contradictions.length === 0) return 'No contradictions detected.';
-  return contradictions
+function formatContradictionsText(session) {
+  if (session.contradictions.length === 0) return 'No contradictions detected.';
+  return session.contradictions
     .map((entry) => `#${entry.step} ${entry.text} → ${entry.reasons.join(', ')}`)
     .join('\n');
 }
@@ -384,30 +447,44 @@ function cloneState(state) {
   };
 }
 
-function stateAtStep(targetStep) {
-  const temp = initStoryState();
-  const limit = Math.max(0, Math.min(history.length - 1, Number.isFinite(targetStep) ? targetStep : history.length - 1));
-  for (let i = 0; i <= limit; i += 1) {
-    applyEventToState(temp, history[i].event);
+function stateAtStep(session, targetStep) {
+  if (session.history.length === 0) {
+    return cloneState(initStoryState(session));
   }
-  return cloneState(temp);
+
+  const limit = Math.max(
+    0,
+    Math.min(session.history.length - 1, Number.isFinite(targetStep) ? targetStep : session.history.length - 1)
+  );
+  if (!session.snapshotCache.state) resetSnapshotCache(session);
+
+  if (limit < session.snapshotCache.step) {
+    resetSnapshotCache(session);
+  }
+
+  for (let i = session.snapshotCache.step + 1; i <= limit; i += 1) {
+    applyEventToState(session.snapshotCache.state, session.history[i].event);
+  }
+  session.snapshotCache.step = limit;
+
+  return cloneState(session.snapshotCache.state);
 }
 
-function parseTargetStep(stepValue) {
+function parseTargetStep(session, stepValue) {
   if (stepValue === undefined || stepValue === null || stepValue === '') {
-    return history.length - 1;
+    return session.history.length - 1;
   }
   const numeric = Number(stepValue);
-  if (!Number.isFinite(numeric)) return history.length - 1;
-  return Math.max(0, Math.min(Math.floor(numeric), history.length - 1));
+  if (!Number.isFinite(numeric)) return session.history.length - 1;
+  return Math.max(0, Math.min(Math.floor(numeric), session.history.length - 1));
 }
 
 function packLocKey(x, y) {
   return (((x & 0xffff) << 16) | (y & 0xffff)) >>> 0;
 }
 
-function corruptWindow(windowTokens, rng, noiseRate) {
-  const maxId = Math.max(6, vocab?.nextId ?? 6);
+function corruptWindow(session, windowTokens, rng, noiseRate) {
+  const maxId = Math.max(6, session.vocab?.nextId ?? 6);
   return windowTokens.map((tokenId) => {
     if (rng() >= noiseRate) return tokenId;
     const span = Math.max(1, maxId - 4);
@@ -438,8 +515,8 @@ function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
-function computeLocalizationMetrics(targetStep, payload) {
-  if (!history.length || !stepTokens.length) return null;
+function computeLocalizationMetrics(session, targetStep, payload) {
+  if (!session.history.length || !session.stepTokens.length) return null;
 
   const windowSizeRaw = Number(payload.windowSize ?? 6);
   const windowSize = clamp(Number.isFinite(windowSizeRaw) ? windowSizeRaw : 6, 4, 12);
@@ -454,20 +531,20 @@ function computeLocalizationMetrics(targetStep, payload) {
   const noiseRaw = Number(payload.noiseRate ?? 0.25);
   const noiseRate = clamp(Number.isFinite(noiseRaw) ? noiseRaw : 0.25, 0, 0.6);
   const windowStart = targetStep - windowSize + 1;
-  const cleanWindow = stepTokens.slice(windowStart, targetStep + 1);
-  const list = stepTokens.slice(0, targetStep + 1);
+  const cleanWindow = session.stepTokens.slice(windowStart, targetStep + 1);
+  const list = session.stepTokens.slice(0, targetStep + 1);
 
   const rng = makeRng(targetStep * 2654435761);
-  const noisyWindow = corruptWindow(cleanWindow, rng, noiseRate);
+  const noisyWindow = corruptWindow(session, cleanWindow, rng, noiseRate);
 
-  const perfRunsRaw = Number(payload.perfRuns ?? 500);
+  const perfRunsRaw = Number(payload.perfRuns ?? DEFAULT_PERF_RUNS);
   const perfRuns = clamp(
-    Number.isFinite(perfRunsRaw) ? Math.floor(perfRunsRaw) : 500,
+    Number.isFinite(perfRunsRaw) ? Math.floor(perfRunsRaw) : DEFAULT_PERF_RUNS,
     1,
-    20000
+    MAX_PERF_RUNS
   );
 
-  const targetLoc = history[targetStep]?.locations?.[0];
+  const targetLoc = session.history[targetStep]?.locations?.[0];
   const targetLocKey = targetLoc ? packLocKey(targetLoc.x, targetLoc.y) : null;
 
   const localizeOnce = (debug) => {
@@ -475,12 +552,12 @@ function computeLocalizationMetrics(targetStep, payload) {
     let scoredLocationsSum = 0;
     let perTokenCandidatesSum = 0;
     let columnsUsed = 0;
-    for (const column of brain.columns) {
-      const result = brain.localizer._localizeColumn(
+    for (const column of session.brain.columns) {
+      const result = session.brain.localizer._localizeColumn(
         noisyWindow,
         column,
         5,
-        { ...(currentConfig.localization ?? {}), debug }
+        { ...(session.currentConfig.localization ?? {}), debug }
       );
       const candidates = result.candidates ?? [];
       const top1 = candidates[0];
@@ -498,7 +575,7 @@ function computeLocalizationMetrics(targetStep, payload) {
         columnsUsed += 1;
       }
     }
-    const winner = votes.length > 0 ? brain.voter.vote(votes) : null;
+    const winner = votes.length > 0 ? session.brain.voter.vote(votes) : null;
     const vsaPerTokenCandidates = columnsUsed > 0 ? perTokenCandidatesSum / columnsUsed : 0;
     return {
       winner,
@@ -550,134 +627,122 @@ function computeLocalizationMetrics(targetStep, payload) {
   };
 }
 
-async function handleQuery(payload) {
+async function handleQuery(session, payload) {
   const type = payload.type;
   const entity = payload.entity;
   const item = payload.item;
   const location = payload.location;
-  const targetStep = parseTargetStep(payload.step);
+  const targetStep = parseTargetStep(session, payload.step);
 
-  if (!history.length) {
-    lastQueryStats = null;
+  if (!session.history.length) {
+    session.lastQueryStats = null;
     return { answerText: 'No events yet.', metrics: null };
   }
 
-  const snapshot = stateAtStep(targetStep);
-  const metrics = computeLocalizationMetrics(targetStep, payload);
+  const snapshot = stateAtStep(session, targetStep);
+  const metrics = computeLocalizationMetrics(session, targetStep, payload);
+  const respond = (answerText) => {
+    session.lastQueryStats = metrics;
+    return { answerText, metrics };
+  };
 
   if (type === 'where' || type === 'whereAt') {
     if (!snapshot.entities[entity]) {
-      lastQueryStats = metrics;
-      return { answerText: `Unknown entity: ${entity}`, metrics };
+      return respond(`Unknown entity: ${entity}`);
     }
     const loc = snapshot.entities[entity].location ?? 'unknown';
-    lastQueryStats = metrics;
-    return { answerText: `${entity} is at ${loc} (step ${targetStep}).`, metrics };
+    return respond(`${entity} is at ${loc} (step ${targetStep}).`);
   }
 
   if (type === 'entitiesAt') {
     const list = Object.entries(snapshot.entities)
       .filter(([, data]) => data.location === location)
       .map(([id]) => id);
-    lastQueryStats = metrics;
-    return { answerText: (list.length > 0 ? `${location}: ${list.join(', ')}` : `${location}: nobody.`), metrics };
+    return respond(list.length > 0 ? `${location}: ${list.join(', ')}` : `${location}: nobody.`);
   }
 
   if (type === 'inventory') {
     const inv = snapshot.entities[entity]?.inventory ?? null;
     if (!inv) {
-      lastQueryStats = metrics;
-      return { answerText: `Unknown entity: ${entity}`, metrics };
+      return respond(`Unknown entity: ${entity}`);
     }
-    lastQueryStats = metrics;
-    return { answerText: (inv.length > 0 ? `${entity} has ${inv.join(', ')}` : `${entity} has nothing.`), metrics };
+    return respond(inv.length > 0 ? `${entity} has ${inv.join(', ')}` : `${entity} has nothing.`);
   }
 
   if (type === 'whoHas') {
     const holder = snapshot.items[item]?.heldBy ?? null;
-    lastQueryStats = metrics;
-    return { answerText: (holder ? `${item} is held by ${holder}.` : `${item} is not held.`), metrics };
+    return respond(holder ? `${item} is held by ${holder}.` : `${item} is not held.`);
   }
 
   if (type === 'itemLocation') {
     const itemState = snapshot.items[item];
     if (!itemState) {
-      lastQueryStats = metrics;
-      return { answerText: `Unknown item: ${item}`, metrics };
+      return respond(`Unknown item: ${item}`);
     }
     let answerText = `${item} location unknown.`;
     if (itemState.heldBy) answerText = `${item} is held by ${itemState.heldBy}.`;
     else if (itemState.location) answerText = `${item} is at ${itemState.location}.`;
-    lastQueryStats = metrics;
-    return { answerText, metrics };
+    return respond(answerText);
   }
 
   if (type === 'isAlive') {
     const alive = snapshot.entities[entity]?.alive;
     if (alive == null) {
-      lastQueryStats = metrics;
-      return { answerText: `Unknown entity: ${entity}`, metrics };
+      return respond(`Unknown entity: ${entity}`);
     }
-    lastQueryStats = metrics;
-    return { answerText: (alive ? `${entity} is alive.` : `${entity} is dead.`), metrics };
+    return respond(alive ? `${entity} is alive.` : `${entity} is dead.`);
   }
 
   if (type === 'lastEvent') {
-    const events = history.filter((entry) => entry.event.subject === entity);
+    const events = session.history.filter((entry) => entry.event.subject === entity);
     if (events.length === 0) {
-      lastQueryStats = metrics;
-      return { answerText: `${entity} has no events.`, metrics };
+      return respond(`${entity} has no events.`);
     }
     const last = events[events.length - 1];
-    lastQueryStats = metrics;
-    return { answerText: `Last: #${last.step} ${last.text}`, metrics };
+    return respond(`Last: #${last.step} ${last.text}`);
   }
 
   if (type === 'timeline') {
     const limit = Math.max(1, Math.min(20, Number(payload.limit) || 6));
-    const events = history.filter((entry) => entry.event.subject === entity).slice(-limit);
+    const events = session.history.filter((entry) => entry.event.subject === entity).slice(-limit);
     if (!events.length) {
-      lastQueryStats = metrics;
-      return { answerText: `${entity} has no events.`, metrics };
+      return respond(`${entity} has no events.`);
     }
-    lastQueryStats = metrics;
-    return { answerText: events.map((entry) => `#${entry.step} ${entry.text}`).join('\n'), metrics };
+    return respond(events.map((entry) => `#${entry.step} ${entry.text}`).join('\n'));
   }
 
   if (type === 'contradictions') {
-    lastQueryStats = metrics;
-    return { answerText: formatContradictionsText(), metrics };
+    return respond(formatContradictionsText(session));
   }
 
   if (type === 'contradictionsFor') {
-    const list = contradictions.filter((entry) => entry.text.startsWith(entity));
+    const list = session.contradictions.filter((entry) => entry.text.startsWith(entity));
     const answerText = list.length === 0
       ? `No contradictions for ${entity}.`
       : list.map((entry) => `#${entry.step} ${entry.text} → ${entry.reasons.join(', ')}`).join('\n');
-    lastQueryStats = metrics;
-    return { answerText, metrics };
+    return respond(answerText);
   }
 
-  lastQueryStats = metrics;
-  return { answerText: 'Unknown query.', metrics };
+  return respond('Unknown query.');
 }
 
-async function getStatePayload() {
-  const state = brain.getState();
+async function getStatePayload(session) {
+  const state = session.brain.getState();
   return {
     step: state.step,
-    numColumns: currentConfig.numColumns,
+    numColumns: session.currentConfig.numColumns,
     columns: state.columns.map((column) => column.location),
-    mapConfig: currentConfig.mapConfig,
-    history: history.map((entry) => ({ locations: entry.locations })),
-    contradictionsCount: contradictions.length,
-    storyText: formatStoryText(),
-    contradictionsText: formatContradictionsText(),
-    lastQueryStats,
+    mapConfig: session.currentConfig.mapConfig,
+    history: session.history.map((entry) => ({ locations: entry.locations })),
+    historyLength: session.history.length,
+    contradictionsCount: session.contradictions.length,
+    storyText: formatStoryText(session),
+    contradictionsText: formatContradictionsText(session),
+    lastQueryStats: session.lastQueryStats,
     world: {
-      entities: world?.entities ?? [],
-      locations: world?.locations ?? [],
-      items: world?.items ?? []
+      entities: session.world?.entities ?? [],
+      locations: session.world?.locations ?? [],
+      items: session.world?.items ?? []
     }
   };
 }
@@ -709,16 +774,26 @@ async function readJson(req) {
   });
 }
 
+async function rebuildBrainWithEvents(session, { seed, numColumns, events }) {
+  initSession(session, { seed, numColumns });
+  for (const event of events) {
+    await addEvent(session, event);
+  }
+  return getStatePayload(session);
+}
+
 async function handleApi(req, res, url) {
+  const session = getSession(req);
+
   if (req.method === 'GET' && url.pathname === '/api/state') {
-    const payload = await getStatePayload();
+    const payload = await getStatePayload(session);
     return sendJson(res, 200, payload);
   }
 
   if (req.method === 'POST' && url.pathname === '/api/query') {
     try {
       const body = await readJson(req);
-      const result = await handleQuery(body);
+      const result = await handleQuery(session, body);
       return sendJson(res, 200, { ok: true, ...result });
     } catch (err) {
       return sendError(res, 500, err.message);
@@ -728,17 +803,10 @@ async function handleApi(req, res, url) {
   if (req.method === 'POST' && url.pathname === '/api/config') {
     try {
       const body = await readJson(req);
-      const nextColumns = Number(body.numColumns);
-      const numColumns = Number.isFinite(nextColumns)
-        ? Math.max(1, Math.min(9, Math.floor(nextColumns)))
-        : currentConfig.numColumns;
-      const events = history.map((entry) => entry.event);
-      const seed = world?.seed;
-      initDemo({ seed, numColumns });
-      for (const event of events) {
-        await addEvent(event);
-      }
-      const payload = await getStatePayload();
+      const events = session.history.map((entry) => entry.event);
+      const seed = session.world?.seed;
+      const numColumns = clampColumns(session, body.numColumns, session.currentConfig.numColumns);
+      const payload = await rebuildBrainWithEvents(session, { seed, numColumns, events });
       return sendJson(res, 200, { ok: true, state: payload });
     } catch (err) {
       return sendError(res, 500, err.message);
@@ -748,11 +816,14 @@ async function handleApi(req, res, url) {
   if (req.method === 'POST' && url.pathname === '/api/story/generate') {
     try {
       const body = await readJson(req);
-      const mode = body.mode === 'contradicting' ? 'contradicting' : 'consistent';
-      lastMode = mode;
-      initDemo({ seed: body.seed, numColumns: body.numColumns });
-      await generateEvents(body.length ?? 10_000, body.seed ?? world.seed, mode === 'contradicting');
-      const payload = await getStatePayload();
+      const mode = normalizeMode(body.mode);
+      session.lastMode = mode;
+      const numColumns = clampColumns(session, body.numColumns, session.currentConfig.numColumns);
+      initSession(session, { seed: body.seed, numColumns });
+      const count = clampStoryCount(body.length, DEFAULT_STORY_EVENTS);
+      const eventSeed = body.seed ?? session.world.seed;
+      await generateEvents(session, count, eventSeed, mode === 'contradicting');
+      const payload = await getStatePayload(session);
       return sendJson(res, 200, { ok: true, state: payload });
     } catch (err) {
       return sendError(res, 500, err.message);
@@ -762,9 +833,11 @@ async function handleApi(req, res, url) {
   if (req.method === 'POST' && url.pathname === '/api/story/append') {
     try {
       const body = await readJson(req);
-      const mode = body.mode ?? lastMode;
-      await generateEvents(body.count ?? 10_000, body.seed ?? Date.now(), mode === 'contradicting');
-      const payload = await getStatePayload();
+      const mode = normalizeMode(body.mode ?? session.lastMode);
+      const count = clampStoryCount(body.count, DEFAULT_STORY_EVENTS);
+      const eventSeed = body.seed ?? Date.now();
+      await generateEvents(session, count, eventSeed, mode === 'contradicting');
+      const payload = await getStatePayload(session);
       return sendJson(res, 200, { ok: true, state: payload });
     } catch (err) {
       return sendError(res, 500, err.message);
@@ -798,7 +871,10 @@ async function handleStatic(req, res, url) {
       '.json': 'application/json',
       '.svg': 'image/svg+xml'
     }[ext] ?? 'application/octet-stream';
-    res.writeHead(200, { 'Content-Type': contentType });
+    res.writeHead(200, {
+      'Content-Type': contentType,
+      'Cache-Control': 'no-store'
+    });
     res.end(data);
   } catch (err) {
     res.writeHead(404);
@@ -813,9 +889,6 @@ const server = http.createServer(async (req, res) => {
   }
   return handleStatic(req, res, url);
 });
-
-initDemo();
-await generateEvents(1_000, world?.seed, false);
 
 server.listen(PORT, () => {
   console.log(`VSABrains demo running on http://localhost:${PORT}`);

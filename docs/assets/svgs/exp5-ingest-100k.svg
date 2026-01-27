@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="980" height="320" viewBox="0 0 980 320" role="img" aria-labelledby="title desc">
   <title id="title">Experiment 5 ingestion throughput at 100k facts</title>
-  <desc id="desc">Ingesting one hundred thousand events takes about 14.37 seconds, or about 6957 facts per second.</desc>
+  <desc id="desc">Ingesting one hundred thousand events takes about 14.34 seconds, or about 6971 facts per second.</desc>
   <rect width="980" height="320" fill="#ffffff"/>
   <text x="40" y="54" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="28" font-weight="700" fill="#0f172a">
     Ingestion Throughput at 100,000 Facts
@@ -15,15 +15,14 @@
       Total ingest time
     </text>
     <text x="40" y="96" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace" font-size="40" font-weight="800" fill="#ffffff">
-      14.37 s
+      14.34 s
     </text>
 
     <text x="520" y="54" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="16" fill="#cbd5e1">
       Throughput
     </text>
     <text x="520" y="96" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace" font-size="40" font-weight="800" fill="#ffffff">
-      6,957 facts/s
+      6,971 facts/s
     </text>
   </g>
 </svg>
-

@@ -11,6 +11,7 @@ const columnsValue = $('#columnsValue');
 const applyColumnsBtn = $('#applyColumnsBtn');
 const statusMsg = $('#statusMsg');
 const stepValue = $('#stepValue');
+const eventsMeta = $('#eventsMeta');
 const columnsMeta = $('#columnsMeta');
 const contradictionsValue = $('#contradictionsValue');
 const tabButtons = document.querySelectorAll('.tab-btn');
@@ -30,18 +31,16 @@ const queryLimitField = $('#queryLimitField');
 const perfRunsInput = $('#perfRuns');
 const runQueryBtn = $('#runQueryBtn');
 const queryAnswer = $('#queryAnswer');
-const perfVsaTime = $('#perfVsaTime');
-const perfVsaWork = $('#perfVsaWork');
-const perfNaiveTime = $('#perfNaiveTime');
-const perfNaiveWork = $('#perfNaiveWork');
-const perfWorkRatio = $('#perfWorkRatio');
-const perfCorrectness = $('#perfCorrectness');
 const perfBarVsa = $('#perfBarVsa');
 const perfBarNaive = $('#perfBarNaive');
 const perfBarVsaValue = $('#perfBarVsaValue');
 const perfBarNaiveValue = $('#perfBarNaiveValue');
 
 let state = null;
+const sessionId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+const STORY_LENGTH = 1_000;
+const APPEND_COUNT = 10_000;
+const DEFAULT_PERF_RUNS = 500;
 const columnColors = ['#7b8dff', '#52f2c2', '#ffb454', '#ff6bb5', '#73e2ff', '#c2ff6b'];
 
 function populateSelect(select, values) {
@@ -56,7 +55,8 @@ function populateSelect(select, values) {
 }
 
 async function fetchJson(url, options) {
-  const res = await fetch(url, options);
+  const headers = { ...(options?.headers ?? {}), 'x-session-id': sessionId };
+  const res = await fetch(url, { ...options, headers });
   const data = await res.json();
   if (!res.ok || data.ok === false) {
     throw new Error(data.error || 'Request failed');
@@ -73,24 +73,12 @@ function setStatus(message, tone = 'error') {
   statusMsg.style.color = tone === 'error' ? '#f7b4b4' : '#a2f5d6';
 }
 
-function formatMs(value) {
-  if (!Number.isFinite(value)) return '—';
-  if (value < 1) return `${value.toFixed(2)} ms`;
-  return `${value.toFixed(1)} ms`;
-}
-
 function displaySeconds(ms) {
   if (!Number.isFinite(ms)) return { label: '—', seconds: NaN };
   const seconds = ms / 1000;
   if (seconds < 1) return { label: '<1s', seconds: 1 };
   const rounded = Math.max(1, Math.round(seconds));
   return { label: `${rounded}s`, seconds: rounded };
-}
-
-function formatCompact(value) {
-  if (!Number.isFinite(value)) return '—';
-  if (Math.abs(value) >= 1000) return value.toLocaleString('en-US');
-  return value.toFixed(2);
 }
 
 function updatePerf(metrics) {
@@ -100,20 +88,12 @@ function updatePerf(metrics) {
   };
 
   if (!metrics) {
-    if (perfVsaTime) perfVsaTime.textContent = '—';
-    if (perfVsaWork) perfVsaWork.textContent = '—';
-    if (perfNaiveTime) perfNaiveTime.textContent = '—';
-    if (perfNaiveWork) perfNaiveWork.textContent = '—';
-    if (perfWorkRatio) perfWorkRatio.textContent = '—';
-    if (perfCorrectness) perfCorrectness.textContent = 'Run a query';
     setBar(perfBarVsa, perfBarVsaValue, '0%', '—');
     setBar(perfBarNaive, perfBarNaiveValue, '0%', '—');
     return;
   }
 
   if (metrics.note) {
-    if (perfWorkRatio) perfWorkRatio.textContent = metrics.note;
-    if (perfCorrectness) perfCorrectness.textContent = `Need ≥ ${metrics.windowSize ?? 6} steps`;
     const needLabel = `Need ≥ ${metrics.windowSize ?? 6} steps`;
     setBar(perfBarVsa, perfBarVsaValue, '0%', needLabel);
     setBar(perfBarNaive, perfBarNaiveValue, '0%', needLabel);
@@ -136,7 +116,7 @@ function updatePerf(metrics) {
 
   const runs = Number.isFinite(metrics.perfRuns)
     ? metrics.perfRuns
-    : Math.max(1, Math.floor(Number(perfRunsInput?.value ?? 500)));
+    : Math.max(1, Math.floor(Number(perfRunsInput?.value ?? DEFAULT_PERF_RUNS)));
   const runsLabel = `${runs} runs`;
   const vsaLabel = Number.isFinite(vsaDisplay.seconds)
     ? `${vsaDisplay.label} · ${runsLabel}`
@@ -217,6 +197,8 @@ function drawGrid() {
 function updateUI() {
   if (!state) return;
   stepValue.textContent = `Step ${state.step ?? 0}`;
+  const eventsCount = state.historyLength ?? state.history?.length ?? 0;
+  if (eventsMeta) eventsMeta.textContent = `Events: ${eventsCount}`;
   const cols = state.numColumns ?? state.columns?.length ?? 1;
   columnsMeta.textContent = `Columns: ${cols}`;
   if (columnsRange && columnsValue) {
@@ -229,9 +211,8 @@ function updateUI() {
   updatePerf(state.lastQueryStats ?? null);
 }
 
-async function refreshState() {
-  const result = await fetchJson('/api/state');
-  state = result;
+function setState(nextState) {
+  state = nextState;
   updateUI();
   if (state?.world) {
     const { entities, items, locations } = state.world;
@@ -241,59 +222,42 @@ async function refreshState() {
   }
 }
 
-async function generateWorld() {
+async function refreshState() {
+  const result = await fetchJson('/api/state');
+  setState(result);
+}
+
+async function generateStory(mode) {
   try {
     setStatus('');
     const result = await fetchJson('/api/story/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        mode: 'consistent',
-        length: 10000,
+        mode,
+        length: STORY_LENGTH,
         numColumns: Number(columnsRange?.value ?? state?.numColumns ?? 3)
       })
     });
-    state = result.state;
-    updateUI();
-    if (appendMode) appendMode.value = 'consistent';
-    setStatus('Clean story generated.', 'success');
+    setState(result.state);
+    if (appendMode) appendMode.value = mode;
+    const label = mode === 'contradicting' ? 'Contradicting story generated.' : 'Clean story generated.';
+    setStatus(label, 'success');
   } catch (err) {
     setStatus(err.message);
   }
 }
 
-async function addHundredActions() {
+async function addMoreActions() {
   try {
     setStatus('');
     const result = await fetchJson('/api/story/append', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ count: 10000, mode: appendMode?.value ?? 'consistent' })
+      body: JSON.stringify({ count: APPEND_COUNT, mode: appendMode?.value ?? 'consistent' })
     });
-    state = result.state;
-    updateUI();
+    setState(result.state);
     setStatus('');
-  } catch (err) {
-    setStatus(err.message);
-  }
-}
-
-async function generateContradictingStory() {
-  try {
-    setStatus('');
-    const result = await fetchJson('/api/story/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        mode: 'contradicting',
-        length: 10000,
-        numColumns: Number(columnsRange?.value ?? state?.numColumns ?? 3)
-      })
-    });
-    state = result.state;
-    updateUI();
-    if (appendMode) appendMode.value = 'contradicting';
-    setStatus('Contradicting story generated.', 'success');
   } catch (err) {
     setStatus(err.message);
   }
@@ -354,7 +318,7 @@ async function runQuery() {
       location: queryLocation.value,
       windowSize: 6,
       noiseRate: 0.25,
-      perfRuns: Math.max(1, Math.floor(Number(perfRunsInput?.value ?? 500)))
+      perfRuns: Math.max(1, Math.floor(Number(perfRunsInput?.value ?? DEFAULT_PERF_RUNS)))
     };
     if (queryStepField.style.display !== 'none' && queryStep.value !== '') {
       payload.step = Number(queryStep.value);
@@ -376,9 +340,9 @@ async function runQuery() {
 }
 
 function attachEvents() {
-  generateCleanBtn.addEventListener('click', generateWorld);
-  generateContradictBtn.addEventListener('click', generateContradictingStory);
-  addHundredBtn.addEventListener('click', addHundredActions);
+  generateCleanBtn.addEventListener('click', () => generateStory('consistent'));
+  generateContradictBtn.addEventListener('click', () => generateStory('contradicting'));
+  addHundredBtn.addEventListener('click', addMoreActions);
   if (columnsRange && columnsValue) {
     columnsRange.addEventListener('input', () => {
       columnsValue.textContent = columnsRange.value;

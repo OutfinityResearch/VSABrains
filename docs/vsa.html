@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>VSA vs VSABrains</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/site.css">
+  </head>
+  <body>
+    <div class="site">
+      <header class="header">
+        <a class="brand" href="index.html" aria-label="VSABrains home">
+          <img src="assets/svgs/brand-icon.svg" alt="" width="28" height="28">
+          <span>VSABrains</span>
+        </a>
+      </header>
+
+      <main class="main content">
+        <div class="section">
+          <h1>VSA vs VSABrains</h1>
+          <p>
+            VSABrains is not “anti-VSA.” It is a response to a specific failure mode we observed
+            when using holographic superposition to represent long narratives: <strong>order becomes muddy</strong>.
+            This page explains the tradeoff plainly and shows where VSA ideas still exist in the system.
+          </p>
+        </div>
+
+        <div class="section">
+          <h2>The core difference: superposition vs address</h2>
+          <p>
+            Classic Vector Symbolic Architectures (VSA) represent many items in a single vector by
+            superposing them. This is elegant and algebraic, but under long sequences it tends to blur order.
+            VSABrains chooses a different encoding: <strong>order as address</strong>. Steps are written along a
+            trajectory in a discrete map, so “when” is stored as “where.”
+          </p>
+          <img src="assets/svgs/vsa-vs-discrete.svg" alt="Comparison diagram: VSA superposition versus VSABrains discrete trajectories" style="width: 100%; max-width: 980px; height: auto; border: 1px solid rgba(0,0,0,0.08); border-radius: 12px; background: white;">
+        </div>
+
+        <div class="section">
+          <h2>What VSABrains keeps from VSA</h2>
+          <ul>
+            <li><strong>Symbolic tokens:</strong> events become stable token IDs.</li>
+            <li><strong>Binding by composition:</strong> a step token is a deterministic hash of role tokens.</li>
+            <li><strong>Distributed evidence:</strong> heavy-hitters retain multiple candidates per location.</li>
+          </ul>
+          <p class="note">
+            In short: we still compose symbols, but we do not rely on dense holographic superposition to carry timeline structure.
+          </p>
+        </div>
+
+        <div class="section">
+          <h2>Why the discrete choice helps</h2>
+          <div class="link-grid">
+            <div class="card">
+              <div class="card-title">Auditable order</div>
+              <div class="card-note">
+                A step has a concrete location. Retrieval is a replay plus an index lookup, not a fragile unbinding guess.
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-title">Consensus under noise</div>
+              <div class="card-note">
+                Multiple columns can disagree and then vote. A single holographic stream has no native multi-view consensus.
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-title">Index beats scan</div>
+              <div class="card-note">
+                Localization uses a token→location index. A naive list must scan linearly over the full history.
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-title">Graceful degradation</div>
+              <div class="card-note">
+                Heavy-hitters cap local memory and make loss explicit. Superposition tends to degrade invisibly.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2>What this does not claim</h2>
+          <ul>
+            <li>It does not claim holographic memory or perfect unbinding from a single endpoint.</li>
+            <li>It does not claim lower ingestion cost than a simple list (it often costs more).</li>
+            <li>It does claim that, at scale, indexed localization + checkpoints can reduce query cost.</li>
+          </ul>
+          <p>
+            See <a href="evals/exp4.html">Experiment 4</a> for consensus under noise, and <a href="evals/exp5.html">Experiment 5</a>
+            for scaling behavior on larger histories.
+          </p>
+        </div>
+
+        <div class="section">
+          <h2>One-sentence summary</h2>
+          <p>
+            VSA compresses by superposing content into a shared space; VSABrains compresses by indexing trajectories in addressable space.
+            The first is algebraically beautiful; the second is operationally auditable.
+          </p>
+        </div>
+      </main>
+
+      <footer class="footer">
+        <a href="index.html">Home</a>
+        <span class="muted">•</span>
+        <a href="why.html">Why VSABrains?</a>
+        <span class="muted">•</span>
+        <a href="evals/status.html">Evaluation Status</a>
+      </footer>
+    </div>
+  </body>
+</html>
+

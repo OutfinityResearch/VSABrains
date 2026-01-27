@@ -42,6 +42,7 @@ node eval/exp5-performance/run.mjs \
 
 - `--facts`: number of generated events (clamped to `10,000..1,000,000`)
 - `--queries`: number of replay-based queries (clamped to `6..60`)
+- `--localizationRuns`: number of localization timing runs (default: `--queries`, clamped to `1..2,000`)
 - `--columns`: number of columns (clamped to `1..5`)
 - `--checkpointInterval`: fixed checkpoint interval in steps (clamped to `1,000..200,000`)
 - `--entities`, `--locations`, `--items`: world sizes
@@ -53,4 +54,3 @@ node eval/exp5-performance/run.mjs \
 - The naive baseline intentionally replays from the beginning on every query.
 - VSABrains uses fixed-interval checkpoints to reduce replay distance.
 - At 1M facts, this experiment can take significant CPU time and memory.
-

@@ -22,20 +22,20 @@
     <tbody>
       <tr>
         <td>Ingestion</td>
-        <td>14.37 s for 100,000 facts (~6,957 facts/s)</td>
+        <td>14.34 s for 100,000 facts (~6,971 facts/s)</td>
         <td>Feasible CPU-first ingestion at this scale</td>
         <td><span class="status-pill status-pass">Good</span></td>
       </tr>
       <tr>
         <td>Replay Queries</td>
-        <td>VSABrains 0.023 s vs naive 0.053 s (24 queries)</td>
-        <td>~2.26× faster with checkpoints</td>
+        <td>VSABrains 0.024 s vs naive 0.050 s (24 queries)</td>
+        <td>~2.07× faster with checkpoints</td>
         <td><span class="status-pill status-pass">Win</span></td>
       </tr>
       <tr>
         <td>Localization</td>
-        <td>VSABrains 0.0068 s vs naive 0.148 s (200 runs)</td>
-        <td>~21.6× faster indexed localization</td>
+        <td>VSABrains 0.0011 s vs naive 0.020 s (24 runs)</td>
+        <td>~18× faster indexed localization</td>
         <td><span class="status-pill status-pass">Big Win</span></td>
       </tr>
       <tr>
@@ -66,6 +66,9 @@
     Localization is where indexing matters most. The naive list must compare the query window
     against almost the entire history, while VSABrains narrows the search to candidate locations.
   </p>
+  <p class="note">
+    Apples-to-apples update: localization timing now uses the same run count as the replay section (24).
+  </p>
 
   <h3>Configuration and Repro</h3>
   <table class="table">
@@ -78,6 +81,7 @@
     <tbody>
       <tr><td>Facts</td><td>100,000</td></tr>
       <tr><td>Queries</td><td>24</td></tr>
+      <tr><td>Localization Runs</td><td>24</td></tr>
       <tr><td>Columns</td><td>1</td></tr>
       <tr><td>Checkpoint Interval</td><td>5,000</td></tr>
       <tr><td>Map</td><td>96 × 96, k=4</td></tr>
@@ -87,10 +91,9 @@
 
   <p class="note">
     Run command:
-    <code>node eval/exp5-performance/run.mjs --facts 100000 --queries 24 --columns 1 --checkpointInterval 5000 --progressEvery 20000</code>
+    <code>node eval/exp5-performance/run.mjs --facts 100000 --queries 24 --localizationRuns 24 --columns 1 --checkpointInterval 5000 --progressEvery 20000</code>
   </p>
   <p class="note">
     Last run: 2026-01-27. Source: <code>eval/exp5-performance/run.mjs</code>.
   </p>
 </div>
-
