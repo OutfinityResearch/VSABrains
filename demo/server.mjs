@@ -34,6 +34,7 @@ const DEMO_CONFIG = {
   mapConfig: { width: 64, height: 64, k: 4 },
   displacement: { contextLength: 2, maxStep: 3, seed: 7, avoidZeroStep: true },
   checkpoint: { policy: 'adaptive', interval: 100, minInterval: 20, maxInterval: 200 },
+  episodicStore: { maxChunks: 2_000_000 },
   writePolicy: 'stepTokenOnly'
 };
 
@@ -329,7 +330,7 @@ function safeEvent(rng) {
 
 async function generateEvents(count, seed, allowAbsurd = true) {
   const rng = makeRng(seed ?? Date.now());
-  const total = Math.max(1, Math.min(500, Number(count) || 1));
+  const total = Math.max(1, Math.min(10_000, Number(count) || 1));
   for (let i = 0; i < total; i += 1) {
     if (allowAbsurd) {
       await addEvent(randomEvent(rng, true));
@@ -459,41 +460,70 @@ function computeLocalizationMetrics(targetStep, payload) {
   const rng = makeRng(targetStep * 2654435761);
   const noisyWindow = corruptWindow(cleanWindow, rng, noiseRate);
 
+  const perfRunsRaw = Number(payload.perfRuns ?? 500);
+  const perfRuns = clamp(
+    Number.isFinite(perfRunsRaw) ? Math.floor(perfRunsRaw) : 500,
+    1,
+    20000
+  );
+
   const targetLoc = history[targetStep]?.locations?.[0];
   const targetLocKey = targetLoc ? packLocKey(targetLoc.x, targetLoc.y) : null;
 
-  const vsaStart = performance.now();
-  const votes = [];
-  let vsaScoredLocations = 0;
-  let vsaPerTokenCandidatesAvg = 0;
-  let vsaColumnsUsed = 0;
-  for (const column of brain.columns) {
-    const debugResult = brain.localizer._localizeColumn(
-      noisyWindow,
-      column,
-      5,
-      { ...(currentConfig.localization ?? {}), debug: true }
-    );
-    const candidates = debugResult.candidates ?? [];
-    const top1 = candidates[0];
-    if (top1?.locKey != null) {
-      votes.push({ value: top1.locKey, weight: top1.score ?? 1 });
+  const localizeOnce = (debug) => {
+    const votes = [];
+    let scoredLocationsSum = 0;
+    let perTokenCandidatesSum = 0;
+    let columnsUsed = 0;
+    for (const column of brain.columns) {
+      const result = brain.localizer._localizeColumn(
+        noisyWindow,
+        column,
+        5,
+        { ...(currentConfig.localization ?? {}), debug }
+      );
+      const candidates = result.candidates ?? [];
+      const top1 = candidates[0];
+      if (top1?.locKey != null) {
+        votes.push({ value: top1.locKey, weight: top1.score ?? 1 });
+      }
+      if (debug) {
+        const perTokenCandidates = result.stats?.perTokenCandidates ?? [];
+        const perTokenMean = perTokenCandidates.length > 0
+          ? perTokenCandidates.reduce((sum, v) => sum + v, 0) / perTokenCandidates.length
+          : 0;
+        const scoredLocations = result.stats?.scoredLocations ?? candidates.length;
+        perTokenCandidatesSum += perTokenMean;
+        scoredLocationsSum += scoredLocations;
+        columnsUsed += 1;
+      }
     }
-    const perTokenCandidates = debugResult.stats?.perTokenCandidates ?? [];
-    const perTokenMean = perTokenCandidates.length > 0
-      ? perTokenCandidates.reduce((sum, v) => sum + v, 0) / perTokenCandidates.length
-      : 0;
-    const scoredLocations = debugResult.stats?.scoredLocations ?? candidates.length;
-    vsaPerTokenCandidatesAvg += perTokenMean;
-    vsaScoredLocations += scoredLocations;
-    vsaColumnsUsed += 1;
+    const winner = votes.length > 0 ? brain.voter.vote(votes) : null;
+    const vsaPerTokenCandidates = columnsUsed > 0 ? perTokenCandidatesSum / columnsUsed : 0;
+    return {
+      winner,
+      vsaScoredLocations: scoredLocationsSum,
+      vsaPerTokenCandidates,
+    };
+  };
+
+  const debugRun = localizeOnce(true);
+  const winner = debugRun.winner;
+  const vsaScoredLocations = debugRun.vsaScoredLocations;
+  const vsaPerTokenCandidates = debugRun.vsaPerTokenCandidates;
+
+  const baseline = naiveListLocalize(list, noisyWindow);
+
+  const vsaStart = performance.now();
+  for (let i = 0; i < perfRuns; i += 1) {
+    localizeOnce(false);
   }
-  const winner = votes.length > 0 ? brain.voter.vote(votes) : null;
   const vsaTimeMs = performance.now() - vsaStart;
-  const vsaPerTokenCandidates = vsaColumnsUsed > 0 ? vsaPerTokenCandidatesAvg / vsaColumnsUsed : 0;
 
   const naiveStart = performance.now();
-  const baseline = naiveListLocalize(list, noisyWindow);
+  for (let i = 0; i < perfRuns; i += 1) {
+    naiveListLocalize(list, noisyWindow);
+  }
   const naiveTimeMs = performance.now() - naiveStart;
   const predictedStep = baseline.bestIndex + windowSize - 1;
   const naiveCorrect = baseline.bestScore === windowSize && predictedStep === targetStep;
@@ -505,6 +535,7 @@ function computeLocalizationMetrics(targetStep, payload) {
     targetStep,
     windowSize,
     noiseRate,
+    perfRuns,
     vsaTimeMs,
     naiveTimeMs,
     vsaScoredLocations,
@@ -720,7 +751,7 @@ async function handleApi(req, res, url) {
       const mode = body.mode === 'contradicting' ? 'contradicting' : 'consistent';
       lastMode = mode;
       initDemo({ seed: body.seed, numColumns: body.numColumns });
-      await generateEvents(body.length ?? 32, body.seed ?? world.seed, mode === 'contradicting');
+      await generateEvents(body.length ?? 10_000, body.seed ?? world.seed, mode === 'contradicting');
       const payload = await getStatePayload();
       return sendJson(res, 200, { ok: true, state: payload });
     } catch (err) {
@@ -732,7 +763,7 @@ async function handleApi(req, res, url) {
     try {
       const body = await readJson(req);
       const mode = body.mode ?? lastMode;
-      await generateEvents(body.count ?? 100, body.seed ?? Date.now(), mode === 'contradicting');
+      await generateEvents(body.count ?? 10_000, body.seed ?? Date.now(), mode === 'contradicting');
       const payload = await getStatePayload();
       return sendJson(res, 200, { ok: true, state: payload });
     } catch (err) {
@@ -784,6 +815,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 initDemo();
+await generateEvents(1_000, world?.seed, false);
 
 server.listen(PORT, () => {
   console.log(`VSABrains demo running on http://localhost:${PORT}`);

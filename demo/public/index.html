@@ -38,7 +38,7 @@
               <option value="contradicting">Contradicting</option>
             </select>
           </div>
-          <button class="btn ghost" id="addHundredBtn">Add 100 Actions</button>
+          <button class="btn ghost" id="addHundredBtn">Add 10000 Actions</button>
         </div>
       </header>
 
@@ -110,6 +110,11 @@
             <input type="number" id="queryLimit" min="1" value="6" />
           </div>
 
+          <div class="field">
+            <label for="perfRuns">Perf Runs</label>
+            <input type="number" id="perfRuns" min="1" max="20000" value="500" />
+          </div>
+
           <button class="btn primary" id="runQueryBtn">Run Query</button>
 
           <div class="story-block">
@@ -120,7 +125,7 @@
           <div class="perf-block">
             <div class="perf-title">Query Performance (Proxy)</div>
             <div class="perf-compare">
-              <div class="perf-compare-title">Faster (shorter bar = better)</div>
+              <div class="perf-compare-title">Real time over repeated runs (seconds) — shorter is better</div>
               <div class="perf-bars">
                 <div class="perf-bar">
                   <div class="perf-bar-label">VSABrains</div>

@@ -1,0 +1,96 @@
+<div class="section">
+  <h2>Experiment 5: Performance at Scale (100k Facts)</h2>
+  <p>
+    Goal: demonstrate that the architecture starts to pay off on larger histories.
+    We generate a long demo-style narrative, then compare VSABrains against a naive
+    baseline that replays from step 0 on every query and scans the full list for localization.
+  </p>
+  <p class="note">
+    This page uses a <strong>100,000 fact</strong> run to keep results fast to reproduce
+    while still showing scaling effects. The experiment script supports up to 1,000,000 facts.
+  </p>
+
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Area</th>
+        <th>Result</th>
+        <th>Interpretation</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Ingestion</td>
+        <td>14.37 s for 100,000 facts (~6,957 facts/s)</td>
+        <td>Feasible CPU-first ingestion at this scale</td>
+        <td><span class="status-pill status-pass">Good</span></td>
+      </tr>
+      <tr>
+        <td>Replay Queries</td>
+        <td>VSABrains 0.023 s vs naive 0.053 s (24 queries)</td>
+        <td>~2.26× faster with checkpoints</td>
+        <td><span class="status-pill status-pass">Win</span></td>
+      </tr>
+      <tr>
+        <td>Localization</td>
+        <td>VSABrains 0.0068 s vs naive 0.148 s (200 runs)</td>
+        <td>~21.6× faster indexed localization</td>
+        <td><span class="status-pill status-pass">Big Win</span></td>
+      </tr>
+      <tr>
+        <td>Correctness</td>
+        <td>0 mismatches on the replay-based queries</td>
+        <td>Speedup without drift on these tests</td>
+        <td><span class="status-pill status-pass">Pass</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Ingestion Throughput</h3>
+  <img src="../assets/svgs/exp5-ingest-100k.svg" alt="Ingestion throughput at one hundred thousand facts" style="width: 100%; max-width: 980px; height: auto; border: 1px solid rgba(0,0,0,0.08); border-radius: 12px; background: white;">
+  <p class="note">
+    Ingest cost grows roughly linearly with facts and also scales with the number of columns (more writes per step).
+  </p>
+
+  <h3>Replay Query Time</h3>
+  <img src="../assets/svgs/exp5-query-speedup-100k.svg" alt="Replay query time comparison at one hundred thousand facts" style="width: 100%; max-width: 980px; height: auto; border: 1px solid rgba(0,0,0,0.08); border-radius: 12px; background: white;">
+  <p>
+    The naive baseline does a full replay from step 0 for every query. VSABrains replays
+    only from the nearest checkpoint, which reduces the effective replay distance.
+  </p>
+
+  <h3>Localization Time</h3>
+  <img src="../assets/svgs/exp5-localization-speedup-100k.svg" alt="Localization time comparison at one hundred thousand facts" style="width: 100%; max-width: 980px; height: auto; border: 1px solid rgba(0,0,0,0.08); border-radius: 12px; background: white;">
+  <p>
+    Localization is where indexing matters most. The naive list must compare the query window
+    against almost the entire history, while VSABrains narrows the search to candidate locations.
+  </p>
+
+  <h3>Configuration and Repro</h3>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Parameter</th>
+        <th>Value</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>Facts</td><td>100,000</td></tr>
+      <tr><td>Queries</td><td>24</td></tr>
+      <tr><td>Columns</td><td>1</td></tr>
+      <tr><td>Checkpoint Interval</td><td>5,000</td></tr>
+      <tr><td>Map</td><td>96 × 96, k=4</td></tr>
+      <tr><td>Displacement</td><td>contextLength=2, maxStep=3</td></tr>
+    </tbody>
+  </table>
+
+  <p class="note">
+    Run command:
+    <code>node eval/exp5-performance/run.mjs --facts 100000 --queries 24 --columns 1 --checkpointInterval 5000 --progressEvery 20000</code>
+  </p>
+  <p class="note">
+    Last run: 2026-01-27. Source: <code>eval/exp5-performance/run.mjs</code>.
+  </p>
+</div>
+

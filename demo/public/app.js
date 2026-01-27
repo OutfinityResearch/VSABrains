@@ -27,6 +27,7 @@ const queryItemField = $('#queryItemField');
 const queryLocationField = $('#queryLocationField');
 const queryStepField = $('#queryStepField');
 const queryLimitField = $('#queryLimitField');
+const perfRunsInput = $('#perfRuns');
 const runQueryBtn = $('#runQueryBtn');
 const queryAnswer = $('#queryAnswer');
 const perfVsaTime = $('#perfVsaTime');
@@ -35,10 +36,10 @@ const perfNaiveTime = $('#perfNaiveTime');
 const perfNaiveWork = $('#perfNaiveWork');
 const perfWorkRatio = $('#perfWorkRatio');
 const perfCorrectness = $('#perfCorrectness');
-const perfWinner = $('#perfWinner');
-const perfSpeedup = $('#perfSpeedup');
 const perfBarVsa = $('#perfBarVsa');
 const perfBarNaive = $('#perfBarNaive');
+const perfBarVsaValue = $('#perfBarVsaValue');
+const perfBarNaiveValue = $('#perfBarNaiveValue');
 
 let state = null;
 const columnColors = ['#7b8dff', '#52f2c2', '#ffb454', '#ff6bb5', '#73e2ff', '#c2ff6b'];
@@ -78,6 +79,14 @@ function formatMs(value) {
   return `${value.toFixed(1)} ms`;
 }
 
+function displaySeconds(ms) {
+  if (!Number.isFinite(ms)) return { label: '—', seconds: NaN };
+  const seconds = ms / 1000;
+  if (seconds < 1) return { label: '<1s', seconds: 1 };
+  const rounded = Math.max(1, Math.round(seconds));
+  return { label: `${rounded}s`, seconds: rounded };
+}
+
 function formatCompact(value) {
   if (!Number.isFinite(value)) return '—';
   if (Math.abs(value) >= 1000) return value.toLocaleString('en-US');
@@ -85,86 +94,59 @@ function formatCompact(value) {
 }
 
 function updatePerf(metrics) {
+  const setBar = (barEl, valueEl, width, label) => {
+    if (barEl) barEl.style.width = width;
+    if (valueEl) valueEl.textContent = label;
+  };
+
   if (!metrics) {
-    perfVsaTime.textContent = '—';
-    perfVsaWork.textContent = '—';
-    perfNaiveTime.textContent = '—';
-    perfNaiveWork.textContent = '—';
-    perfWorkRatio.textContent = '—';
-    perfCorrectness.textContent = 'Run a query';
-    if (perfWinner) perfWinner.textContent = '—';
-    if (perfWinner) perfWinner.style.color = '';
-    if (perfSpeedup) perfSpeedup.textContent = '—';
-    if (perfBarVsa) perfBarVsa.style.width = '0%';
-    if (perfBarNaive) perfBarNaive.style.width = '0%';
+    if (perfVsaTime) perfVsaTime.textContent = '—';
+    if (perfVsaWork) perfVsaWork.textContent = '—';
+    if (perfNaiveTime) perfNaiveTime.textContent = '—';
+    if (perfNaiveWork) perfNaiveWork.textContent = '—';
+    if (perfWorkRatio) perfWorkRatio.textContent = '—';
+    if (perfCorrectness) perfCorrectness.textContent = 'Run a query';
+    setBar(perfBarVsa, perfBarVsaValue, '0%', '—');
+    setBar(perfBarNaive, perfBarNaiveValue, '0%', '—');
     return;
   }
-
-  perfVsaTime.textContent = formatMs(metrics.vsaTimeMs);
-  perfNaiveTime.textContent = formatMs(metrics.naiveTimeMs);
-
-  const vsaWork = Number.isFinite(metrics.vsaScoredLocations)
-    ? `${formatCompact(metrics.vsaScoredLocations)} scored`
-    : '—';
-  const perToken = Number.isFinite(metrics.vsaPerTokenCandidates)
-    ? `${formatCompact(metrics.vsaPerTokenCandidates)} / token`
-    : '';
-  perfVsaWork.textContent = [vsaWork, perToken].filter(Boolean).join('\n');
-
-  perfNaiveWork.textContent = Number.isFinite(metrics.naiveComparisons)
-    ? `${metrics.naiveComparisons.toLocaleString('en-US')} comparisons`
-    : '—';
 
   if (metrics.note) {
-    perfWorkRatio.textContent = metrics.note;
-    perfCorrectness.textContent = `Need ≥ ${metrics.windowSize ?? 6} steps`;
-    if (perfWinner) perfWinner.textContent = 'Not enough data';
-    if (perfWinner) perfWinner.style.color = '';
-    if (perfSpeedup) perfSpeedup.textContent = 'Add more steps';
-    if (perfBarVsa) perfBarVsa.style.width = '0%';
-    if (perfBarNaive) perfBarNaive.style.width = '0%';
+    if (perfWorkRatio) perfWorkRatio.textContent = metrics.note;
+    if (perfCorrectness) perfCorrectness.textContent = `Need ≥ ${metrics.windowSize ?? 6} steps`;
+    const needLabel = `Need ≥ ${metrics.windowSize ?? 6} steps`;
+    setBar(perfBarVsa, perfBarVsaValue, '0%', needLabel);
+    setBar(perfBarNaive, perfBarNaiveValue, '0%', needLabel);
     return;
   }
 
-  perfWorkRatio.textContent = Number.isFinite(metrics.workRatio)
-    ? `~${formatCompact(metrics.workRatio)}×`
+  const vsaTime = Number.isFinite(metrics.vsaTimeMs) ? metrics.vsaTimeMs : NaN;
+  const naiveTime = Number.isFinite(metrics.naiveTimeMs) ? metrics.naiveTimeMs : NaN;
+  const vsaDisplay = displaySeconds(vsaTime);
+  const naiveDisplay = displaySeconds(naiveTime);
+  const safeVsa = Number.isFinite(vsaDisplay.seconds) ? vsaDisplay.seconds : 0;
+  const safeNaive = Number.isFinite(naiveDisplay.seconds) ? naiveDisplay.seconds : 0;
+  const maxTime = Math.max(safeVsa, safeNaive, 1);
+  const denom = Math.log10(maxTime + 1);
+  const scaleWidth = (cost) => {
+    if (!Number.isFinite(cost) || denom <= 0) return 0;
+    const pct = (Math.log10(cost + 1) / denom) * 100;
+    return Math.max(6, Math.min(100, pct));
+  };
+
+  const runs = Number.isFinite(metrics.perfRuns)
+    ? metrics.perfRuns
+    : Math.max(1, Math.floor(Number(perfRunsInput?.value ?? 500)));
+  const runsLabel = `${runs} runs`;
+  const vsaLabel = Number.isFinite(vsaDisplay.seconds)
+    ? `${vsaDisplay.label} · ${runsLabel}`
+    : '—';
+  const naiveLabel = Number.isFinite(naiveDisplay.seconds)
+    ? `${naiveDisplay.label} · ${runsLabel}`
     : '—';
 
-  const vsaCheck = metrics.vsaCorrect ? 'VSA ✓' : 'VSA ✗';
-  const naiveCheck = metrics.naiveCorrect ? 'Naive ✓' : 'Naive ✗';
-  perfCorrectness.textContent = `${vsaCheck}  •  ${naiveCheck}`;
-
-  const vsaCost = Number.isFinite(metrics.vsaScoredLocations) ? metrics.vsaScoredLocations : NaN;
-  const naiveCost = Number.isFinite(metrics.naiveComparisons) ? metrics.naiveComparisons : NaN;
-
-  if (perfWinner && perfSpeedup) {
-    if (Number.isFinite(vsaCost) && Number.isFinite(naiveCost) && vsaCost > 0 && naiveCost > 0) {
-      const ratio = naiveCost / vsaCost;
-      const vsaFaster = ratio >= 1;
-      perfWinner.textContent = vsaFaster ? 'VSABrains faster' : 'Naive faster';
-      const shownRatio = vsaFaster ? ratio : 1 / ratio;
-      perfSpeedup.textContent = `~${formatCompact(shownRatio)}×`;
-      perfWinner.style.color = vsaFaster ? '#a2f5d6' : '#f7b4b4';
-    } else {
-      perfWinner.textContent = 'Speed proxy unavailable';
-      perfSpeedup.textContent = '—';
-      perfWinner.style.color = '';
-    }
-  }
-
-  if (perfBarVsa && perfBarNaive) {
-    const safeVsa = Number.isFinite(vsaCost) ? vsaCost : 0;
-    const safeNaive = Number.isFinite(naiveCost) ? naiveCost : 0;
-    const maxCost = Math.max(safeVsa, safeNaive, 1);
-    const denom = Math.log10(maxCost + 1);
-    const scaleWidth = (cost) => {
-      if (!Number.isFinite(cost) || denom <= 0) return 0;
-      const pct = (Math.log10(cost + 1) / denom) * 100;
-      return Math.max(6, Math.min(100, pct));
-    };
-    perfBarVsa.style.width = `${scaleWidth(vsaCost)}%`;
-    perfBarNaive.style.width = `${scaleWidth(naiveCost)}%`;
-  }
+  setBar(perfBarVsa, perfBarVsaValue, `${scaleWidth(vsaDisplay.seconds)}%`, vsaLabel);
+  setBar(perfBarNaive, perfBarNaiveValue, `${scaleWidth(naiveDisplay.seconds)}%`, naiveLabel);
 }
 
 function drawGrid() {
@@ -267,6 +249,7 @@ async function generateWorld() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         mode: 'consistent',
+        length: 10000,
         numColumns: Number(columnsRange?.value ?? state?.numColumns ?? 3)
       })
     });
@@ -285,11 +268,11 @@ async function addHundredActions() {
     const result = await fetchJson('/api/story/append', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ count: 100, mode: appendMode?.value ?? 'consistent' })
+      body: JSON.stringify({ count: 10000, mode: appendMode?.value ?? 'consistent' })
     });
     state = result.state;
     updateUI();
-    setStatus('Added 100 actions.', 'success');
+    setStatus('');
   } catch (err) {
     setStatus(err.message);
   }
@@ -303,6 +286,7 @@ async function generateContradictingStory() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         mode: 'contradicting',
+        length: 10000,
         numColumns: Number(columnsRange?.value ?? state?.numColumns ?? 3)
       })
     });
@@ -369,7 +353,8 @@ async function runQuery() {
       item: queryItem.value,
       location: queryLocation.value,
       windowSize: 6,
-      noiseRate: 0.25
+      noiseRate: 0.25,
+      perfRuns: Math.max(1, Math.floor(Number(perfRunsInput?.value ?? 500)))
     };
     if (queryStepField.style.display !== 'none' && queryStep.value !== '') {
       payload.step = Number(queryStep.value);

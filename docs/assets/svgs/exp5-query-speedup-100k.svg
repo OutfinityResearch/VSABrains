@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="360" viewBox="0 0 980 360" role="img" aria-labelledby="title desc">
+  <title id="title">Experiment 5 query time at 100k facts</title>
+  <desc id="desc">Naive list replay takes about 0.053 seconds while VSABrains replay takes about 0.023 seconds, for roughly a 2.26x speedup.</desc>
+  <rect width="980" height="360" fill="#ffffff"/>
+  <text x="40" y="54" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="28" font-weight="700" fill="#0f172a">
+    Query Time at 100,000 Facts (24 queries)
+  </text>
+  <text x="40" y="86" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="16" fill="#475569">
+    Lower is better. Measured with eval/exp5-performance/run.mjs.
+  </text>
+
+  <g transform="translate(40,120)">
+    <text x="0" y="28" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="16" font-weight="600" fill="#0f172a">Naive List Replay</text>
+    <rect x="0" y="40" width="820" height="44" rx="12" fill="#fee2e2" stroke="#ef4444" stroke-opacity="0.35"/>
+    <rect x="0" y="40" width="820" height="44" rx="12" fill="#ef4444" fill-opacity="0.85"/>
+    <text x="16" y="69" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace" font-size="18" font-weight="700" fill="#ffffff">0.053 s total</text>
+  </g>
+
+  <g transform="translate(40,210)">
+    <text x="0" y="28" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="16" font-weight="600" fill="#0f172a">VSABrains Replay</text>
+    <rect x="0" y="40" width="364" height="44" rx="12" fill="#d1fae5" stroke="#10b981" stroke-opacity="0.35"/>
+    <rect x="0" y="40" width="364" height="44" rx="12" fill="#10b981" fill-opacity="0.9"/>
+    <text x="16" y="69" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace" font-size="18" font-weight="700" fill="#052e26">0.023 s total</text>
+  </g>
+
+  <g transform="translate(660,220)">
+    <rect x="0" y="0" width="280" height="96" rx="16" fill="#0f172a"/>
+    <text x="140" y="38" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="14" fill="#cbd5e1">
+      Speedup (naive / VSA)
+    </text>
+    <text x="140" y="72" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="32" font-weight="800" fill="#ffffff">
+      2.26×
+    </text>
+  </g>
+</svg>
+

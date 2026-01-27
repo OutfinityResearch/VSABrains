@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="360" viewBox="0 0 980 360" role="img" aria-labelledby="title desc">
+  <title id="title">Experiment 5 localization time at 100k facts</title>
+  <desc id="desc">Naive sliding window localization takes about 0.148 seconds over 200 runs while VSABrains takes about 0.007 seconds, for roughly a 21.6x speedup.</desc>
+  <rect width="980" height="360" fill="#ffffff"/>
+  <text x="40" y="54" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="28" font-weight="700" fill="#0f172a">
+    Localization Time at 100,000 Facts (200 runs)
+  </text>
+  <text x="40" y="86" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="16" fill="#475569">
+    Window size = 6. Indexed localization vs full sliding-window scan.
+  </text>
+
+  <g transform="translate(40,120)">
+    <text x="0" y="28" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="16" font-weight="600" fill="#0f172a">Naive Sliding Window</text>
+    <rect x="0" y="40" width="820" height="44" rx="12" fill="#fee2e2" stroke="#ef4444" stroke-opacity="0.35"/>
+    <rect x="0" y="40" width="820" height="44" rx="12" fill="#ef4444" fill-opacity="0.85"/>
+    <text x="16" y="69" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace" font-size="18" font-weight="700" fill="#ffffff">0.148 s total</text>
+  </g>
+
+  <g transform="translate(40,210)">
+    <text x="0" y="28" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="16" font-weight="600" fill="#0f172a">VSABrains Indexed</text>
+    <rect x="0" y="40" width="58" height="44" rx="12" fill="#dbeafe" stroke="#2563eb" stroke-opacity="0.4"/>
+    <rect x="0" y="40" width="58" height="44" rx="12" fill="#2563eb" fill-opacity="0.92"/>
+    <text x="16" y="69" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace" font-size="18" font-weight="700" fill="#0b1b52">0.0068 s total</text>
+  </g>
+
+  <g transform="translate(660,220)">
+    <rect x="0" y="0" width="280" height="96" rx="16" fill="#0f172a"/>
+    <text x="140" y="38" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="14" fill="#cbd5e1">
+      Speedup (naive / VSA)
+    </text>
+    <text x="140" y="72" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="32" font-weight="800" fill="#ffffff">
+      21.6×
+    </text>
+  </g>
+</svg>
+
