@@ -45,36 +45,95 @@ The system is designed around a deterministic **step clock**.
 
 ### 2.3 Step Flow Diagram
 
-```text
-┌───────────────────────────────────────────────────────────────┐
-│ STEP FLOW (per column, per step)                               │
-├───────────────────────────────────────────────────────────────┤
-│ input                                                          │
-│   → normalize → StepInput                                      │
-│   → stepWrite(stepInput, step)                                 │
-│        ├─ write writeTokenIds to GridMap cell (pre-move)        │
-│        ├─ LocationIndex.update(stepTokenId, x, y, step)         │
-│        └─ episodic store / slow map hooks (optional)            │
-│   → displacementEncoder.step(stepTokenId)                       │
-│        └─ append to buffer → compute displacement               │
-│   → stepMove(dx, dy)                                            │
-│        └─ update location (wrap)                                │
-└───────────────────────────────────────────────────────────────┘
-```
+<svg viewBox="0 0 980 220" width="100%" role="img" aria-label="Step flow diagram" style="max-width: 980px; height: auto; border: 1px solid rgba(0,0,0,0.08); border-radius: 12px; background: white;">
+  <defs>
+    <marker id="arrow-step" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0f172a"></path>
+    </marker>
+    <style>
+      .box { fill: #ffffff; stroke: #0f172a; stroke-width: 1.5; rx: 10; ry: 10; }
+      .sub { fill: #f8fafc; stroke: #cbd5e1; stroke-width: 1.2; rx: 8; ry: 8; }
+      .title { font: 600 14px "Space Grotesk", system-ui, sans-serif; fill: #0f172a; }
+      .label { font: 500 12px "Space Grotesk", system-ui, sans-serif; fill: #334155; }
+      .arrow { stroke: #0f172a; stroke-width: 1.8; fill: none; marker-end: url(#arrow-step); }
+    </style>
+  </defs>
+
+  <rect class="box" x="20" y="28" width="150" height="54"></rect>
+  <text class="title" x="95" y="50" text-anchor="middle">Input</text>
+  <text class="label" x="95" y="68" text-anchor="middle">token / event</text>
+
+  <path class="arrow" d="M 170 55 L 220 55"></path>
+
+  <rect class="box" x="220" y="28" width="180" height="54"></rect>
+  <text class="title" x="310" y="50" text-anchor="middle">Normalize</text>
+  <text class="label" x="310" y="68" text-anchor="middle">→ StepInput</text>
+
+  <path class="arrow" d="M 400 55 L 450 55"></path>
+
+  <rect class="box" x="450" y="18" width="220" height="74"></rect>
+  <text class="title" x="560" y="40" text-anchor="middle">stepWrite</text>
+  <rect class="sub" x="466" y="50" width="188" height="30"></rect>
+  <text class="label" x="560" y="70" text-anchor="middle">write → index → hooks</text>
+
+  <path class="arrow" d="M 670 55 L 720 55"></path>
+
+  <rect class="box" x="720" y="18" width="240" height="74"></rect>
+  <text class="title" x="840" y="40" text-anchor="middle">displacementEncoder.step</text>
+  <rect class="sub" x="736" y="50" width="208" height="30"></rect>
+  <text class="label" x="840" y="70" text-anchor="middle">append buffer → displacement</text>
+
+  <path class="arrow" d="M 840 92 L 840 140"></path>
+
+  <rect class="box" x="690" y="140" width="270" height="62"></rect>
+  <text class="title" x="825" y="164" text-anchor="middle">stepMove(dx, dy)</text>
+  <text class="label" x="825" y="184" text-anchor="middle">update location with wrap</text>
+</svg>
 
 ### 2.4 Query Flow Diagram
 
-```text
-┌───────────────────────────────────────────────────────────────┐
-│ QUERY FLOW                                                     │
-├───────────────────────────────────────────────────────────────┤
-│ question + windowStepTokenIds                                   │
-│   → localize(window) → candidates                               │
-│   → (optional) verify candidates by replay                      │
-│   → (optional) retrieve facts/chunks (DS005)                     │
-│   → reason + verify → verdict + evidence                         │
-└───────────────────────────────────────────────────────────────┘
-```
+<svg viewBox="0 0 980 220" width="100%" role="img" aria-label="Query flow diagram" style="max-width: 980px; height: auto; border: 1px solid rgba(0,0,0,0.08); border-radius: 12px; background: white;">
+  <defs>
+    <marker id="arrow-query" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0f172a"></path>
+    </marker>
+    <style>
+      .box { fill: #ffffff; stroke: #0f172a; stroke-width: 1.5; rx: 10; ry: 10; }
+      .opt { fill: #f8fafc; stroke: #cbd5e1; stroke-width: 1.2; rx: 8; ry: 8; }
+      .title { font: 600 14px "Space Grotesk", system-ui, sans-serif; fill: #0f172a; }
+      .label { font: 500 12px "Space Grotesk", system-ui, sans-serif; fill: #334155; }
+      .arrow { stroke: #0f172a; stroke-width: 1.8; fill: none; marker-end: url(#arrow-query); }
+    </style>
+  </defs>
+
+  <rect class="box" x="20" y="28" width="210" height="54"></rect>
+  <text class="title" x="125" y="50" text-anchor="middle">Question + Window</text>
+  <text class="label" x="125" y="68" text-anchor="middle">windowStepTokenIds</text>
+
+  <path class="arrow" d="M 230 55 L 280 55"></path>
+
+  <rect class="box" x="280" y="28" width="180" height="54"></rect>
+  <text class="title" x="370" y="50" text-anchor="middle">Localize</text>
+  <text class="label" x="370" y="68" text-anchor="middle">top-K candidates</text>
+
+  <path class="arrow" d="M 460 55 L 510 55"></path>
+
+  <rect class="opt" x="510" y="18" width="200" height="74"></rect>
+  <text class="title" x="610" y="40" text-anchor="middle">Verify (optional)</text>
+  <text class="label" x="610" y="60" text-anchor="middle">replay + constraints</text>
+
+  <path class="arrow" d="M 710 55 L 760 55"></path>
+
+  <rect class="opt" x="760" y="18" width="200" height="74"></rect>
+  <text class="title" x="860" y="40" text-anchor="middle">Retrieve (DS005)</text>
+  <text class="label" x="860" y="60" text-anchor="middle">facts / chunks</text>
+
+  <path class="arrow" d="M 860 92 L 860 140"></path>
+
+  <rect class="box" x="660" y="140" width="300" height="62"></rect>
+  <text class="title" x="810" y="164" text-anchor="middle">Reason + Verify</text>
+  <text class="label" x="810" y="184" text-anchor="middle">verdict + evidence</text>
+</svg>
 
 ### 2.5 Worked Example: 3 Steps (Write → Buffer → Move)
 
@@ -191,15 +250,44 @@ This distinction keeps indexing and displacement bounded while still allowing ri
 
 VSABrains uses these terms in a very specific hierarchy:
 
-```text
-Column (per-column state)
-├── GridMap fast[0..F-1]
-│   └── Cell[x][y] = HeavyHitters(K)
-├── GridMap slow[0..S-1] (optional)
-│   └── Cell[x][y] = HeavyHitters(K)
-├── DisplacementEncoder (context buffer of stepTokenIds)
-└── LocationIndex (stepTokenId → candidate locations)
-```
+<svg viewBox="0 0 980 220" width="100%" role="img" aria-label="Column map and cell hierarchy" style="max-width: 980px; height: auto; border: 1px solid rgba(0,0,0,0.08); border-radius: 12px; background: white;">
+  <defs>
+    <style>
+      .box { fill: #ffffff; stroke: #0f172a; stroke-width: 1.5; rx: 10; ry: 10; }
+      .child { fill: #f8fafc; stroke: #cbd5e1; stroke-width: 1.2; rx: 8; ry: 8; }
+      .title { font: 600 14px "Space Grotesk", system-ui, sans-serif; fill: #0f172a; }
+      .label { font: 500 12px "Space Grotesk", system-ui, sans-serif; fill: #334155; }
+      .edge { stroke: #0f172a; stroke-width: 1.6; fill: none; }
+    </style>
+  </defs>
+
+  <rect class="box" x="20" y="20" width="220" height="60"></rect>
+  <text class="title" x="130" y="46" text-anchor="middle">Column</text>
+  <text class="label" x="130" y="66" text-anchor="middle">per-column state</text>
+
+  <path class="edge" d="M 240 50 L 300 50"></path>
+  <path class="edge" d="M 300 50 L 300 180"></path>
+
+  <path class="edge" d="M 300 50 L 330 50"></path>
+  <rect class="child" x="330" y="24" width="240" height="52"></rect>
+  <text class="title" x="450" y="46" text-anchor="middle">GridMap fast[0..F-1]</text>
+  <text class="label" x="450" y="64" text-anchor="middle">Cell[x][y] → HeavyHitters(K)</text>
+
+  <path class="edge" d="M 300 95 L 330 95"></path>
+  <rect class="child" x="330" y="69" width="240" height="52"></rect>
+  <text class="title" x="450" y="91" text-anchor="middle">GridMap slow[0..S-1]</text>
+  <text class="label" x="450" y="109" text-anchor="middle">optional slow summaries</text>
+
+  <path class="edge" d="M 300 140 L 330 140"></path>
+  <rect class="child" x="330" y="114" width="280" height="52"></rect>
+  <text class="title" x="470" y="136" text-anchor="middle">DisplacementEncoder</text>
+  <text class="label" x="470" y="154" text-anchor="middle">context buffer of stepTokenIds</text>
+
+  <path class="edge" d="M 300 185 L 330 185"></path>
+  <rect class="child" x="330" y="159" width="280" height="52"></rect>
+  <text class="title" x="470" y="181" text-anchor="middle">LocationIndex</text>
+  <text class="label" x="470" y="199" text-anchor="middle">stepTokenId → candidate locations</text>
+</svg>
 
 Notes:
 - A **column** owns multiple maps plus its own location and encoders.
