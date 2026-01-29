@@ -1,4 +1,5 @@
 import { runExperiment4 } from './run.mjs';
+import { Reporter } from '../common/Reporter.mjs';
 
 const columnCounts = [1, 3, 5, 7, 9];
 const noiseRates = [0.15, 0.25, 0.35];
@@ -40,15 +41,21 @@ async function runSweep() {
     }
   }
 
-  console.log(JSON.stringify({
-    generatedAt: new Date().toISOString(),
-    baseConfig: {
-      ...baseConfig,
-      noiseRates,
-      columnCounts
-    },
-    rows
-  }, null, 2));
+  const tableRows = rows.map((row) => ([
+    String(row.noiseRate),
+    String(row.numColumns),
+    (row.consensusAcc ?? 0).toFixed(3),
+    (row.singleColumnAcc ?? 0).toFixed(3),
+    (row.baselineAcc ?? 0).toFixed(3),
+    (row.gainVsSingle ?? 0).toFixed(3),
+    (row.gainVsBaseline ?? 0).toFixed(3)
+  ]));
+  Reporter.printTable(
+    'Exp4 Sweep: Consensus vs Noise',
+    ['Noise', 'Columns', 'Consensus', 'Single', 'Baseline', 'Gain vs Single', 'Gain vs Baseline'],
+    tableRows,
+    `Generated at ${new Date().toISOString()}`
+  );
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

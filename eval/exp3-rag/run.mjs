@@ -141,5 +141,5 @@ function computePredicateCoverage(extractionStats, vocabulary) {
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const report = await runExperiment3({});
-  console.log(JSON.stringify(report, null, 2));
+  Reporter.print(report);
 }

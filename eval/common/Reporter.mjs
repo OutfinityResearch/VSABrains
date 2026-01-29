@@ -1,5 +1,77 @@
 import fs from 'node:fs/promises';
 
+const ANSI = {
+  reset: '\x1b[0m',
+  bold: '\x1b[1m',
+  dim: '\x1b[2m',
+  green: '\x1b[32m',
+  red: '\x1b[31m',
+  yellow: '\x1b[33m',
+  cyan: '\x1b[36m'
+};
+
+const STRIP_ANSI = /\x1b\[[0-9;]*m/g;
+
+function color(text, tone) {
+  return `${ANSI[tone] ?? ''}${text}${ANSI.reset}`;
+}
+
+function stripAnsi(text) {
+  return String(text).replace(STRIP_ANSI, '');
+}
+
+function padCell(value, width) {
+  const raw = String(value);
+  const len = stripAnsi(raw).length;
+  if (len >= width) return raw;
+  return `${raw}${' '.repeat(width - len)}`;
+}
+
+function formatTable(headers, rows) {
+  const widths = headers.map((h, i) => {
+    let w = stripAnsi(h).length;
+    for (const row of rows) {
+      w = Math.max(w, stripAnsi(row[i] ?? '').length);
+    }
+    return w;
+  });
+
+  const line = (cells) => cells.map((cell, i) => padCell(cell ?? '', widths[i])).join('  ');
+  const separator = widths.map((w) => '-'.repeat(w)).join('  ');
+
+  return [
+    line(headers.map((h) => color(h, 'bold'))),
+    separator,
+    ...rows.map((row) => line(row))
+  ].join('\n');
+}
+
+function formatPercent(value) {
+  if (!Number.isFinite(value)) return '—';
+  return `${(value * 100).toFixed(1)}%`;
+}
+
+function formatNumber(value) {
+  if (!Number.isFinite(value)) return '—';
+  if (Math.abs(value) >= 1000) return value.toLocaleString();
+  if (Math.abs(value) >= 10) return value.toFixed(1);
+  return value.toFixed(3);
+}
+
+function formatMetric(value) {
+  if (!Number.isFinite(value)) return '—';
+  if (value >= 0 && value <= 1) return formatPercent(value);
+  return formatNumber(value);
+}
+
+function formatSpeedup(value) {
+  if (!Number.isFinite(value)) return '—';
+  const label = `${value.toFixed(2)}x`;
+  if (value >= 1.2) return color(label, 'green');
+  if (value >= 1.0) return color(label, 'yellow');
+  return color(label, 'red');
+}
+
 export const Reporter = {
   summarize(experimentName, results) {
     return {
@@ -120,5 +192,211 @@ export const Reporter = {
   async exportMarkdown(report, path) {
     const content = `# ${report.experiment}\n\n${report.summary}\n`;
     await fs.writeFile(path, content);
+  },
+
+  print(report) {
+    if (!report) {
+      console.log(color('No report to display.', 'red'));
+      return;
+    }
+
+    const header = `${report.experiment ?? 'experiment'}`.replace(/_/g, ' ');
+    console.log(color(`\n=== ${header} ===`, 'cyan'));
+    if (report.timestamp) console.log(color(`Timestamp: ${report.timestamp}`, 'dim'));
+    if (report.summary) console.log(`${report.summary}`);
+
+    if (report.experiment === 'exp5-performance') {
+      return this.printExp5(report);
+    }
+    if (report.experiment === 'exp6-literature') {
+      return this.printExp6(report);
+    }
+
+    const criteria = report.passedCriteria ?? [];
+    if (criteria.length > 0) {
+      const rows = criteria.map((c) => {
+        const status = c.passed ? color('PASS', 'green') : color('FAIL', 'red');
+        return [
+          c.criterion ?? 'criterion',
+          formatMetric(c.target),
+          formatMetric(c.actual),
+          status
+        ];
+      });
+      console.log('\nCriteria');
+      console.log(formatTable(['Criterion', 'Target', 'Actual', 'Status'], rows));
+    }
+
+    const metricsTable = this.buildMetricsTable(report.experiment, report.results ?? {});
+    if (metricsTable) {
+      console.log('\nKey Metrics');
+      console.log(metricsTable);
+    }
+
+    const note = this.explain(report.experiment);
+    if (note) {
+      console.log(color(`\nNote: ${note}`, 'dim'));
+    }
+  },
+
+  buildMetricsTable(experimentName, results) {
+    if (!results) return null;
+    if (experimentName === 'exp1-alignment') {
+      const rows = [
+        ['Scenario A top1', formatMetric(results?.scenarioA?.top1Acc)],
+        ['Scenario A top5', formatMetric(results?.scenarioA?.top5Acc)],
+        ['Scenario B consensus', formatMetric(results?.scenarioB?.consensusAcc)],
+        ['Scenario B best column', formatMetric(results?.scenarioB?.bestColumnAcc)],
+        ['Scenario B gain', formatMetric(results?.scenarioB?.consensusGain)],
+        ['Scenario C noise top1', formatMetric(results?.scenarioC?.top1Acc)],
+        ['Scenario D ambiguous top1', formatMetric(results?.scenarioD?.top1Acc)]
+      ];
+      return formatTable(['Metric', 'Value'], rows);
+    }
+
+    if (experimentName === 'exp2-narrative') {
+      const rows = [
+        ['State accuracy', formatMetric(results?.baseline?.accuracies?.[0]?.accuracy)],
+        ['Coref resolution', formatMetric(results?.coref?.corefResolution)],
+        ['Motif handling', formatMetric(results?.motifs?.accuracies?.[0]?.accuracy)],
+        ['Time localization', formatMetric(results?.timeLocalization?.timeLocAccuracy)],
+        ['Conflict detection', formatMetric(results?.conflictDetection?.detectionRate)]
+      ];
+      return formatTable(['Metric', 'Value'], rows);
+    }
+
+    if (experimentName === 'exp3-rag') {
+      const rows = [
+        ['Supported precision', formatMetric(results?.supported?.metrics?.supportedPrecision)],
+        ['Supported recall', formatMetric(results?.supported?.metrics?.supportedRecall)],
+        ['Refusal accuracy', formatMetric(results?.unsupported?.metrics?.refusalAccuracy)],
+        ['Adversarial refusal', formatMetric(results?.adversarial?.metrics?.refusalAccuracy)],
+        ['Conflict precision', formatMetric(results?.conflicting?.metrics?.conflictPrecision)],
+        ['Conflict recall', formatMetric(results?.conflicting?.metrics?.conflictRecall)],
+        ['Hallucination rate', formatMetric(results?.supported?.metrics?.hallucinationRate)],
+        ['Extraction consistency', formatMetric(results?.extractionConsistency?.jaccardAvg)],
+        ['Predicate coverage', formatMetric(results?.predicateCoverage)]
+      ];
+      return formatTable(['Metric', 'Value'], rows);
+    }
+
+    if (experimentName === 'exp4-consensus') {
+      const rows = [
+        ['Consensus gain vs single', formatMetric(results?.consensus?.consensusGainOverSingle)],
+        ['Consensus gain vs baseline', formatMetric(results?.consensus?.consensusGainOverBaseline)]
+      ];
+      return formatTable(['Metric', 'Value'], rows);
+    }
+
+    return null;
+  },
+
+  printExp5(report) {
+    const config = report.config ?? {};
+    const ingest = report.ingest ?? {};
+    const queries = report.queries ?? {};
+    const localization = report.localization ?? {};
+
+    console.log('\nIngestion');
+    console.log(formatTable(
+      ['Facts', 'Seconds', 'Facts/sec'],
+      [[
+        formatNumber(ingest.facts),
+        formatNumber(ingest.ingestSeconds),
+        formatNumber(ingest.factsPerSecond)
+      ]]
+    ));
+
+    console.log('\nReplay Queries');
+    console.log(formatTable(
+      ['Queries', 'Naive (s)', 'VSA (s)', 'Speedup', 'Mismatches'],
+      [[
+        formatNumber(queries.totalQueries),
+        formatNumber(queries.naiveSeconds),
+        formatNumber(queries.vsaSeconds),
+        formatSpeedup(queries.speedup),
+        formatNumber(queries.mismatches)
+      ]]
+    ));
+
+    console.log('\nReplay Steps');
+    console.log(formatTable(
+      ['Avg Naive Steps', 'Avg VSA Steps', 'Step Reduction'],
+      [[
+        formatNumber(queries.avgNaiveSteps),
+        formatNumber(queries.avgReplaySteps),
+        formatSpeedup(queries.stepReduction)
+      ]]
+    ));
+
+    const perTypeRows = Object.entries(queries.perType ?? {}).map(([type, data]) => ([
+      type,
+      formatNumber(data.count),
+      formatNumber(data.naiveAvgMs),
+      formatNumber(data.vsaAvgMs),
+      formatSpeedup(data.speedup)
+    ]));
+    if (perTypeRows.length > 0) {
+      console.log('\nPer-Query Type (ms)');
+      console.log(formatTable(['Type', 'Count', 'Naive', 'VSA', 'Speedup'], perTypeRows));
+    }
+
+    console.log('\nLocalization');
+    console.log(formatTable(
+      ['Window', 'Runs', 'Naive (s)', 'VSA (s)', 'Speedup', 'Work Ratio'],
+      [[
+        formatNumber(localization.windowSize),
+        formatNumber(localization.perfRuns),
+        formatNumber(localization.naiveSeconds),
+        formatNumber(localization.vsaSeconds),
+        formatSpeedup(localization.speedup),
+        formatNumber(localization.workRatio)
+      ]]
+    ));
+
+    console.log('\nConfig');
+    console.log(formatTable(
+      ['Facts', 'Queries', 'Columns', 'Checkpoint'],
+      [[
+        formatNumber(config.facts),
+        formatNumber(config.queriesCount),
+        formatNumber(config.numColumns),
+        formatNumber(config.checkpointInterval)
+      ]]
+    ));
+
+    if (Number.isFinite(queries.speedup) && queries.speedup < 1 && Number.isFinite(queries.stepReduction) && queries.stepReduction > 1.5) {
+      console.log(color('Note: Replay steps are reduced, but fixed overhead dominates at this fact count.', 'yellow'));
+    }
+  },
+
+  printExp6(report) {
+    const rows = [[
+      formatNumber(report.facts),
+      formatNumber(report.queries),
+      formatNumber(report.naiveMs),
+      formatNumber(report.indexedMs),
+      formatSpeedup(report.speedup)
+    ]];
+    console.log('\nSemantic Query Proxy');
+    console.log(formatTable(['Facts', 'Queries', 'Naive (ms)', 'Indexed (ms)', 'Speedup'], rows));
+  },
+
+  printTable(title, headers, rows, note) {
+    if (title) console.log(color(`\n${title}`, 'cyan'));
+    console.log(formatTable(headers, rows));
+    if (note) console.log(color(note, 'dim'));
+  },
+
+  explain(experimentName) {
+    const notes = {
+      'exp1-alignment': 'Higher Top-1/Top-5 means better localization; consensus gain should be positive.',
+      'exp2-narrative': 'Accuracy and coreference show whether the narrative state stays coherent over time.',
+      'exp3-rag': 'Precision/recall indicate grounded answers; hallucination rate should stay low.',
+      'exp4-consensus': 'Positive gains show multi-column voting beats single-column baselines.',
+      'exp5-performance': 'Speedup compares replay-with-checkpoints vs full replay from step 0.',
+      'exp6-literature': 'Speedup compares indexed semantic spaces vs naive scans.'
+    };
+    return notes[experimentName] ?? null;
   }
 };

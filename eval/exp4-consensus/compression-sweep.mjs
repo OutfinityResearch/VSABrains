@@ -1,4 +1,5 @@
 import { runExperiment4 } from './run.mjs';
+import { Reporter } from '../common/Reporter.mjs';
 
 const baseExperiment = {
   numTrials: 3,
@@ -106,14 +107,21 @@ async function runCompressionSweep() {
     });
   }
 
-  console.log(JSON.stringify({
-    generatedAt: new Date().toISOString(),
-    baseExperiment,
-    rows
-  }, null, 2));
+  const tableRows = rows.map((row) => ([
+    row.id,
+    (row.consensusAcc ?? 0).toFixed(3),
+    (row.gainVsSingle ?? 0).toFixed(3),
+    (row.workRatio ?? 0).toFixed(2),
+    Math.round(row.vsaBytes ?? 0).toLocaleString()
+  ]));
+  Reporter.printTable(
+    'Exp4 Compression Sweep (Summary)',
+    ['Variant', 'Consensus', 'Gain vs Single', 'Work Ratio', 'VSA Bytes'],
+    tableRows,
+    `Generated at ${new Date().toISOString()}`
+  );
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   await runCompressionSweep();
 }
-

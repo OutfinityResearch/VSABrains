@@ -225,5 +225,5 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     }
   });
 
-  console.log(JSON.stringify(report, null, 2));
+  Reporter.print(report);
 }

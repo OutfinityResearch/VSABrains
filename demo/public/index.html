@@ -20,25 +20,27 @@
           </div>
         </div>
         <div class="topbar-actions">
-          <button class="btn ghost" id="generateCleanBtn">Generate Clean Story (1,000)</button>
-          <button class="btn primary" id="generateContradictBtn">Generate Contradicting Story (1,000)</button>
-          <div class="columns-control">
-            <label for="columnsRange">Columns</label>
-            <div class="columns-row">
-              <input type="range" id="columnsRange" min="1" max="9" step="1" value="3" />
-              <div class="columns-value" id="columnsValue">3</div>
-              <button class="btn ghost" id="applyColumnsBtn">Apply</button>
-            </div>
-            <div class="columns-note">Rebuilds the brain and replays the story.</div>
-          </div>
-          <div class="append-mode">
-            <label for="appendMode">Append Mode</label>
-            <select id="appendMode">
-              <option value="consistent">Clean</option>
-              <option value="contradicting">Contradicting</option>
+          <div class="content-mode">
+            <label for="contentMode">Content Mode</label>
+            <select id="contentMode">
+              <option value="synthetic">Synthetic</option>
+              <option value="literature">Literature w/ Dialogue &amp; Intrigue</option>
+              <option value="chat">Chat Dialog</option>
             </select>
           </div>
-          <button class="btn ghost" id="addHundredBtn">Add 10,000 Actions</button>
+          <div class="action-menu">
+            <label for="storyAction">Story Action</label>
+            <div class="columns-row">
+              <select id="storyAction">
+                <option value="reset:consistent">Reset Clean Story (1,000)</option>
+                <option value="reset:contradicting">Reset Contradicting Story (1,000)</option>
+                <option value="append:consistent">Append 10,000 Clean Actions</option>
+                <option value="append:contradicting">Append 10,000 Contradicting Actions</option>
+              </select>
+              <button class="btn primary" id="storyActionRun">Run</button>
+            </div>
+            <div class="columns-note">Reset replaces story; Append adds facts.</div>
+          </div>
         </div>
       </header>
 
@@ -48,17 +50,53 @@
             <h2>Memory Grid</h2>
             <div class="tab-row">
               <button class="tab-btn active" data-tab="grid">Grid</button>
-              <button class="tab-btn" data-tab="story">Story</button>
+              <button class="tab-btn" data-tab="story">Story &amp; Meta</button>
             </div>
           </div>
           <div class="canvas-wrap tab-panel" data-panel="grid">
-            <canvas id="gridCanvas" width="640" height="640"></canvas>
+            <canvas id="gridCanvas" width="520" height="520"></canvas>
+          </div>
+          <div class="grid-footer tab-panel" data-panel="grid">
+            <div class="anim-controls">
+              <div class="anim-buttons">
+                <button class="icon-btn" id="animPlayBtn" title="Play">▶</button>
+                <button class="icon-btn" id="animPauseBtn" title="Pause">❚❚</button>
+                <button class="icon-btn" id="animNextBtn" title="Next step">⏭</button>
+              </div>
+              <div class="anim-speed">
+                <label for="animSpeed">Animation Speed</label>
+                <div class="columns-row">
+                  <input type="range" id="animSpeed" min="0" max="100" step="1" value="50" />
+                  <div class="columns-value" id="animSpeedValue">1.0x</div>
+                </div>
+                <div class="columns-note" id="animSpeedHint">≈ 2.2s per sweep</div>
+              </div>
+            </div>
+            <div class="columns-footer">
+              <div class="columns-control compact">
+                <label for="columnsRange">Columns</label>
+                <div class="columns-row">
+                  <input type="range" id="columnsRange" min="1" max="9" step="1" value="3" />
+                  <div class="columns-value" id="columnsValue">3</div>
+                  <button class="btn ghost" id="applyColumnsBtn">Apply</button>
+                </div>
+                <div class="columns-note">Rebuilds the brain and replays the story.</div>
+              </div>
+              <div class="columns-filter" id="columnsFilter">
+                <span>Show columns:</span>
+                <div class="columns-checkboxes" id="columnsCheckboxes"></div>
+                <div class="columns-actions">
+                  <button class="btn ghost small" id="columnsAllBtn">All</button>
+                  <button class="btn ghost small" id="columnsNoneBtn">None</button>
+                </div>
+              </div>
+            </div>
           </div>
           <div class="story-block tab-panel hidden" data-panel="story">
             <label for="storyField">Story (Read-only)</label>
-            <textarea id="storyField" rows="18" readonly></textarea>
+            <textarea id="storyField" rows="24" readonly></textarea>
           </div>
-          <div class="grid-meta">
+          <div class="grid-meta tab-panel hidden" data-panel="story">
             <span id="stepValue">Step 0</span>
             <span id="eventsMeta">Events: 0</span>
             <span id="columnsMeta">Columns: 3</span>
@@ -67,7 +105,13 @@
         </section>
 
         <section class="panel control">
-          <h2>Queries</h2>
+          <h2>Control Panel</h2>
+          <div class="subtab-row">
+            <button class="subtab-btn active" data-subtab="query">Query</button>
+            <button class="subtab-btn" data-subtab="cnl">CNL</button>
+            <button class="subtab-btn" data-subtab="frames">Frames</button>
+          </div>
+          <div class="subtab-panel" data-subpanel="query">
           <p class="muted">Try at least 10 query types to explore reasoning and contradictions.</p>
           <div class="field">
             <label for="queryType">Query Type</label>
@@ -89,6 +133,11 @@
           <div class="field" id="queryEntityField">
             <label for="queryEntity">Entity</label>
             <select id="queryEntity"></select>
+          </div>
+
+          <div class="field" id="queryTargetField">
+            <label for="queryTarget">Other Entity</label>
+            <select id="queryTarget"></select>
           </div>
 
           <div class="field" id="queryItemField">
@@ -118,6 +167,11 @@
             <textarea id="queryAnswer" rows="8" readonly></textarea>
           </div>
 
+          <div class="story-block">
+            <label>Query Activity</label>
+            <div class="activity-log" id="activityLog"></div>
+          </div>
+
           <div class="perf-block">
             <div class="perf-title">Query Performance (Proxy)</div>
             <div class="perf-compare">
@@ -144,6 +198,32 @@
           </div>
 
           <div class="status" id="statusMsg"></div>
+          </div>
+          <div class="subtab-panel hidden" data-subpanel="cnl">
+            <div class="field">
+              <label for="frameProfile">Frame Profile (CNL)</label>
+              <select id="frameProfile"></select>
+            </div>
+            <div class="story-block">
+              <label for="cnlField">Active CNL Profile</label>
+              <textarea id="cnlField" rows="6" readonly></textarea>
+            </div>
+          </div>
+          <div class="subtab-panel hidden" data-subpanel="frames">
+            <div class="spaces-note muted">
+              Frame film: plays frames in order of activity and draws the step segments where each frame appeared (last 250 steps).
+            </div>
+            <div class="frames-now" id="framesNow">Idle · no frame playing</div>
+            <div class="frames-legend" id="frameLegend"></div>
+            <div class="story-block">
+              <label for="framesSummary">Frames Summary</label>
+              <textarea id="framesSummary" rows="5" readonly></textarea>
+            </div>
+            <div class="spaces-meta" id="spacesMeta">Facts: 0</div>
+            <div class="spaces-note muted">
+              Frames are defined by a CNL profile and activated dynamically based on salience.
+            </div>
+          </div>
         </section>
       </main>
     </div>

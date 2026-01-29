@@ -19,13 +19,13 @@ All queries and metrics are computed using the same event stream.
 
 ## Run
 
-Default run targets **1,000,000 facts**:
+Default run targets **10,000 facts** (fast local sanity check):
 
 ```bash
 node eval/exp5-performance/run.mjs
 ```
 
-You can override key parameters:
+You can override key parameters (example for larger runs):
 
 ```bash
 node eval/exp5-performance/run.mjs \

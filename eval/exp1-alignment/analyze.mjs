@@ -1,4 +1,5 @@
 import { runExperiment1 } from './run.mjs';
+import { Reporter } from '../common/Reporter.mjs';
 
 const report = await runExperiment1({
   windowSize: 5,
@@ -12,4 +13,4 @@ const report = await runExperiment1({
   }
 });
 
-console.log(JSON.stringify(report, null, 2));
+Reporter.print(report);

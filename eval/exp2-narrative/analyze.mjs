@@ -1,4 +1,5 @@
 import { runExperiment2 } from './run.mjs';
+import { Reporter } from '../common/Reporter.mjs';
 
 const report = await runExperiment2({
   storyConfig: { numEntities: 3, numEvents: 100, corefRate: 0.1, resetRate: 0 },
@@ -10,4 +11,4 @@ const report = await runExperiment2({
   }
 });
 
-console.log(JSON.stringify(report, null, 2));
+Reporter.print(report);

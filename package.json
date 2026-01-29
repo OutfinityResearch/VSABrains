@@ -10,10 +10,11 @@
     "eval:exp2": "node eval/exp2-narrative/run.mjs",
     "eval:exp3": "node eval/exp3-rag/run.mjs",
     "eval:exp4": "node eval/exp4-consensus/run.mjs",
-    "eval:exp5": "node eval/exp5-performance/run.mjs --facts 100000 --queries 24 --columns 1 --checkpointInterval 5000 --progressEvery 20000",
+    "eval:exp5": "node eval/exp5-performance/run.mjs --facts 10000 --queries 24 --columns 1 --checkpointInterval 500 --progressEvery 10000",
+    "eval:exp6": "node eval/exp6-literature/run.mjs",
     "eval:exp4:sweep": "node eval/exp4-consensus/sweep.mjs",
     "eval:exp4:compression": "node eval/exp4-consensus/compression-sweep.mjs",
-    "eval:all": "npm run eval:exp1 && npm run eval:exp2 && npm run eval:exp3 && npm run eval:exp4 && npm run eval:exp5"
+    "eval:all": "npm run eval:exp1 && npm run eval:exp2 && npm run eval:exp3 && npm run eval:exp4 && npm run eval:exp5 && npm run eval:exp6"
   },
   "devDependencies": {}
 }

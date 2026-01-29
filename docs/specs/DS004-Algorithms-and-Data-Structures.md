@@ -12,6 +12,7 @@ This specification defines the **core discrete runtime** of VSABrains: how steps
 
 Out of scope (documented separately):
 - Text ingestion and verifiable RAG integration (DS005: retrieval, conflict rules, derivation, answer contract)
+- Semantic frames and CNL-driven specialization (DS006)
 - High-level architectural rationale (DS001)
 - Concrete module breakdown and implementation sequencing (DS002b; file-level APIs in DS002a)
 - Experiment definitions and metrics (DS003)

@@ -1,6 +1,7 @@
 import { performance } from 'node:perf_hooks';
 import { VSABrains } from '../../src/index.mjs';
 import { packLocKey } from '../../src/util/locKey.mjs';
+import { Reporter } from '../common/Reporter.mjs';
 import {
   makeExp2Vocabulary,
   makeCorefState,
@@ -279,11 +280,12 @@ function answerFromState(state, query, world) {
 }
 
 async function runExperiment5(userConfig = {}) {
-  const facts = clamp(toInt(userConfig.facts, 1_000_000), 10_000, 1_000_000);
+  const facts = clamp(toInt(userConfig.facts, 10_000), 10_000, 1_000_000);
   const queriesCount = clamp(toInt(userConfig.queries, 18), 6, 60);
   const numColumns = clamp(toInt(userConfig.columns, 1), 1, 5);
   const seed = toInt(userConfig.seed, 1337);
-  const checkpointInterval = clamp(toInt(userConfig.checkpointInterval, 20_000), 1_000, 200_000);
+  const defaultCheckpoint = Math.max(200, Math.min(5000, Math.round(facts / 20)));
+  const checkpointInterval = clamp(toInt(userConfig.checkpointInterval, defaultCheckpoint), 200, 200_000);
   const entitiesCount = clamp(toInt(userConfig.entities, 48), 8, 128);
   const locationsCount = clamp(toInt(userConfig.locations, 48), 8, 128);
   const itemsCount = clamp(toInt(userConfig.items, 96), 16, 256);
@@ -342,6 +344,7 @@ async function runExperiment5(userConfig = {}) {
   const naiveTimes = new Array(queries.length).fill(0);
   const vsaTimes = new Array(queries.length).fill(0);
   const replayStepsArr = new Array(queries.length).fill(0);
+  const naiveStepsArr = new Array(queries.length).fill(0);
 
   const naiveStart = performance.now();
   const naiveAnswers = new Array(queries.length);
@@ -353,6 +356,7 @@ async function runExperiment5(userConfig = {}) {
     const t1 = performance.now();
     naiveAnswers[i] = answer;
     naiveTimes[i] = t1 - t0;
+    naiveStepsArr[i] = q.step + 1;
   }
   const naiveMs = performance.now() - naiveStart;
 
@@ -372,6 +376,13 @@ async function runExperiment5(userConfig = {}) {
     if (!equal) mismatches += 1;
   }
   const vsaMs = performance.now() - vsaStart;
+  const avgReplaySteps = replayStepsArr.length > 0
+    ? replayStepsArr.reduce((a, b) => a + b, 0) / replayStepsArr.length
+    : 0;
+  const avgNaiveSteps = naiveStepsArr.length > 0
+    ? naiveStepsArr.reduce((a, b) => a + b, 0) / naiveStepsArr.length
+    : 0;
+  const stepReduction = avgReplaySteps > 0 ? avgNaiveSteps / avgReplaySteps : null;
 
   const perTypeStats = {};
   for (let i = 0; i < queries.length; i += 1) {
@@ -438,6 +449,9 @@ async function runExperiment5(userConfig = {}) {
       naiveSeconds: naiveMs / 1000,
       vsaSeconds: vsaMs / 1000,
       speedup: vsaMs > 0 ? naiveMs / vsaMs : null,
+      avgNaiveSteps,
+      avgReplaySteps,
+      stepReduction,
       mismatches,
       perType
     },
@@ -518,7 +532,7 @@ async function runLocalizationBenchmark({ brain, stepTokenIds, locKeys, facts, s
 if (import.meta.url === `file://${process.argv[1]}`) {
   const args = parseArgs(process.argv.slice(2));
   const report = await runExperiment5(args);
-  console.log(JSON.stringify(report, null, 2));
+  Reporter.print(report);
 }
 
 export { runExperiment5 };

@@ -16,6 +16,7 @@ This specification covers **optional integrations** that are not required for th
 - Exp3-oriented retrieval (question → candidate facts/chunks)
 - Exp3-oriented derivation + conflict detection (how answers become `supported` / `conflicting` / `unsupported`)
 - Verifiable RAG answer contract (verdict + evidence chain)
+- CNL-driven semantic frames for literature/dialogue (DS006)
 
 Core algorithms (GridMaps, displacement, localization, replay, reasoning primitives) are specified in DS004.
 

@@ -15,6 +15,8 @@ Source of truth:
 
 - DS004: definitive runtime semantics (step ordering, displacement, localization, replay, checkpoints)
 - DS005: non-core integrations (text ingestion, LLM extraction, validation, retrieval, conflict rules, derivation, answer contract)
+- DS006: semantic encoder contract and virtual spaces catalog
+- DS007: Exp6 literature/dialogue evaluation design
 
 Recommended reading:
 
@@ -24,3 +26,5 @@ Recommended reading:
 4. DS002a (API reference while coding)
 5. DS003 (Evaluation)
 6. DS005 (Integrations, for Exp3)
+7. DS006 (Semantic encoder + virtual spaces)
+8. DS007 (Exp6: literature and dialogue)
