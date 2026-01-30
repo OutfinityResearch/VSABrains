@@ -42,6 +42,15 @@ class TutorialSpeech {
       return;
     }
 
+    // Ensure speech never leaks across navigations (some browsers keep speaking unless cancelled).
+    window.addEventListener('pagehide', () => this.stop());
+    window.addEventListener('beforeunload', () => this.stop());
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        this.stop();
+      }
+    });
+
     // Load voices when available
     this.loadVoices();
     if (this.synth.onvoiceschanged !== undefined) {
