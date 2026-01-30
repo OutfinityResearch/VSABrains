@@ -96,6 +96,20 @@ export const SCENES = [
     duration: 14
   },
   {
+    id: 'alignment',
+    title: 'Frame Alignment - Agreeing on "Where" Across Columns',
+    summary: 'Columns live in different reference frames. Alignment maps their candidate locations into a shared frame so votes become comparable.',
+    bullets: [
+      'Each column has its own (x,y) origin',
+      'Same evidence → different coordinates',
+      'Alignment converts candidates into a shared frame',
+      'Enables meaningful voting + confidence'
+    ],
+    key: 'Consensus requires a common frame: align first, then vote.',
+    signals: ['reference frame', 'offset', 'alignment', 'consensus'],
+    duration: 16
+  },
+  {
     id: 'localization',
     title: 'Localization - Where Am I in Memory Space?',
     summary: 'Given a context window, localization finds matching locations in the stored grid. It returns candidate positions with confidence scores. This is how the system "remembers" where it was.',
@@ -236,6 +250,20 @@ export const SCENES = [
     duration: 14
   },
   {
+    id: 'verdicts',
+    title: 'Answer Contract - Supported, Conflicting, Unsupported',
+    summary: 'The system reports an explicit verdict for each answer. It never guesses: it either has evidence, finds conflict, or says evidence is insufficient.',
+    bullets: [
+      'supported: evidence chain fully backs the claim',
+      'conflicting: credible evidence disagrees',
+      'unsupported: not enough evidence to answer',
+      'Each verdict includes provenance'
+    ],
+    key: 'Verifiability beats fluency: every claim gets a transparent verdict.',
+    signals: ['supported', 'conflicting', 'unsupported', 'provenance'],
+    duration: 16
+  },
+  {
     id: 'conflict',
     title: 'Conflict Detection - When Facts Disagree',
     summary: 'When multiple sources provide conflicting information, the system detects and reports conflicts. Temporal ordering and source credibility help resolution.',
@@ -276,6 +304,20 @@ export const SCENES = [
     key: 'Entity resolution unifies scattered mentions into coherent knowledge.',
     signals: ['alias', 'canonical ID', 'coreference', 'identity merge'],
     duration: 14
+  },
+  {
+    id: 'knobs',
+    title: 'System Knobs - Tradeoffs You Can Tune',
+    summary: 'VSABrains has interpretable parameters that trade accuracy, ambiguity-handling, compute, and memory. Tuning is explicit, not mysterious.',
+    bullets: [
+      'context length: more context → fewer collisions, more compute',
+      'top-K per cell: more capacity → less forgetting, more muddiness',
+      'num columns: more redundancy → better consensus, more cost',
+      'checkpoints: more frequent → faster replay, more storage'
+    ],
+    key: 'The architecture is tunable and inspectable: you can see the tradeoffs.',
+    signals: ['contextLength', 'topK', 'columns', 'checkpoints'],
+    duration: 16
   }
 ];
 

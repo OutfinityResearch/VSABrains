@@ -10,6 +10,7 @@ const NARRATION_FILES = [
   new URL('./narrations/02-displacement.json', import.meta.url).href,
   new URL('./narrations/03-path.json', import.meta.url).href,
   new URL('./narrations/04-multicolumn.json', import.meta.url).href,
+  new URL('./narrations/04b-alignment.json', import.meta.url).href,
   new URL('./narrations/05-localization.json', import.meta.url).href,
   new URL('./narrations/06-voting.json', import.meta.url).href,
   new URL('./narrations/07-branching.json', import.meta.url).href,
@@ -20,9 +21,11 @@ const NARRATION_FILES = [
   new URL('./narrations/12-reasoning.json', import.meta.url).href,
   new URL('./narrations/13-vsaindex.json', import.meta.url).href,
   new URL('./narrations/14-retrieval.json', import.meta.url).href,
+  new URL('./narrations/14b-verdicts.json', import.meta.url).href,
   new URL('./narrations/15-conflict.json', import.meta.url).href,
   new URL('./narrations/16-derivation.json', import.meta.url).href,
-  new URL('./narrations/17-entities.json', import.meta.url).href
+  new URL('./narrations/17-entities.json', import.meta.url).href,
+  new URL('./narrations/18-knobs.json', import.meta.url).href
 ];
 
 // Cache for loaded narrations
@@ -91,8 +94,10 @@ export function getNarration(sceneId, lang = 'en') {
   
   if (!requestedText) {
     console.warn(`[Narration] Language "${lang}" not found for scene "${sceneId}". Available: ${Object.keys(sceneNarrations).join(', ')}`);
-    // Fallback to English
-    return sceneNarrations['en'] || '';
+    // Important: don't silently fall back here.
+    // The caller (speech layer) needs to know whether we actually found text in the requested language,
+    // so it can pick an appropriate voice (e.g., avoid Romanian-accented English).
+    return '';
   }
   
   console.log(`[Narration] Returning ${lang} text for scene "${sceneId}" (length: ${requestedText.length})`);

@@ -285,7 +285,8 @@ class TutorialSpeech {
   }
 
   isSpeaking() {
-    return Boolean(this.synth?.speaking);
+    // Treat queued utterances as "active" so the tutorial can stay in sync when we chain narration parts.
+    return Boolean(this.synth?.speaking || this.synth?.pending);
   }
 
   isPaused() {
@@ -300,8 +301,11 @@ class TutorialSpeech {
       return;
     }
 
-    // Stop any current speech
-    this.stop();
+    const queue = options.queue === true;
+    if (!queue) {
+      // Stop any current speech
+      this.stop();
+    }
 
     const utterance = new SpeechSynthesisUtterance(text);
     
@@ -367,7 +371,13 @@ class TutorialSpeech {
     console.log(`  - narrationText found: ${!!narrationText}`);
     console.log(`  - text preview: ${text.substring(0, 100)}...`);
     
-    this.speak(text, { rate: 0.8, languageOverride });
+    // Slightly slower than default for a calmer, more "lecture-like" cadence.
+    this.speak(text, { rate: 0.78, languageOverride });
+
+    // Read the on-screen "Key idea" too (it's shown in the right panel, but we avoid duplicating it on-canvas).
+    if (scene.key) {
+      this.speak(`Key idea: ${scene.key}`, { rate: 0.82, languageOverride: 'en', queue: true });
+    }
   }
 
   /**

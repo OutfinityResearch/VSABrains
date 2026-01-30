@@ -43,7 +43,6 @@ export function renderGridScene(ctx, phase, baseWidth, baseHeight) {
   ctx.stroke();
 
   drawLabel(ctx, x, y - 35, 'Writing token...', 'highlight');
-  drawLabel(ctx, baseWidth / 2, baseHeight - 25, 'Memory = tokens written at locations in a 2D grid', 'highlight');
 }
 
 /**
@@ -71,7 +70,6 @@ export function renderDisplacementScene(ctx, phase, baseWidth, baseHeight) {
     ]);
   }
 
-  drawLabel(ctx, baseWidth / 2, baseHeight - 25, 'Context tokens are hashed to compute displacement vector', 'highlight');
 }
 
 /**
@@ -93,7 +91,6 @@ export function renderPathScene(ctx, phase, baseWidth, baseHeight) {
     `Cells visited: ${new Set(path.slice(0, stepCount).map(p => `${p.x},${p.y}`)).size}`
   ]);
 
-  drawLabel(ctx, baseWidth / 2, baseHeight - 25, 'The path through space encodes the sequence - time becomes space', 'highlight');
 }
 
 /**
@@ -124,7 +121,73 @@ export function renderMultiColumnScene(ctx, phase, baseWidth, baseHeight) {
     ctx.fillText(`Column ${idx + 1} (offset: ${[15, 18, 13][idx]}, ${[14, 16, 18][idx]})`, baseWidth - 165, ly + 4);
   });
 
-  drawLabel(ctx, baseWidth / 2, baseHeight - 25, 'Same input, different starting positions → different but correlated paths', 'highlight');
+}
+
+/**
+ * Render Alignment Scene - Mapping different column frames into a shared frame
+ */
+export function renderAlignmentScene(ctx, phase, baseWidth, baseHeight) {
+  drawGridBackground(ctx, baseWidth, baseHeight);
+  drawGrid(ctx, [], null, false);
+
+  const colors = [COLORS.path1, COLORS.path2, COLORS.path3];
+
+  // Draw paths and current positions.
+  PATHS.forEach((path, idx) => {
+    drawPath(ctx, path, colors[idx], phase, false);
+  });
+
+  const stepIdx = Math.floor(phase * (TOKENS.length - 1));
+  const current = PATHS.map(path => path[Math.min(stepIdx, path.length - 1)]);
+
+  current.forEach((pos, idx) => {
+    const { x, y } = gridToPixel(pos.x, pos.y);
+    ctx.fillStyle = colors[idx];
+    ctx.beginPath();
+    ctx.arc(x, y, 7, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  // Frame origins (start positions)
+  const starts = PATHS.map(path => path[0]);
+  const anchor = starts[0];
+  const anchorPx = gridToPixel(anchor.x, anchor.y);
+
+  // Highlight anchor frame origin.
+  ctx.strokeStyle = COLORS.locMatch;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(anchorPx.x, anchorPx.y, 14, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Draw alignment vectors between frame origins.
+  if (phase > 0.45) {
+    const alpha = Math.min(1, (phase - 0.45) / 0.15);
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = COLORS.displacement;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 4]);
+
+    for (let i = 1; i < starts.length; i++) {
+      const from = gridToPixel(starts[i].x, starts[i].y);
+      ctx.beginPath();
+      ctx.moveTo(from.x, from.y);
+      ctx.lineTo(anchorPx.x, anchorPx.y);
+      ctx.stroke();
+    }
+
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 1;
+  }
+
+  const offsets = starts.map(s => ({ dx: anchor.x - s.x, dy: anchor.y - s.y }));
+
+  drawInfoBox(ctx, baseWidth - 200, 50, 'Frame Alignment', [
+    'Each column has its own origin',
+    `Offsets → shared frame`,
+    `C1 offset: (${offsets[0].dx}, ${offsets[0].dy})`,
+    phase > 0.55 ? `C2/C3: (${offsets[1].dx}, ${offsets[1].dy}), (${offsets[2].dx}, ${offsets[2].dy})` : 'Aligning candidates...'
+  ]);
 }
 
 /**
@@ -153,7 +216,6 @@ export function renderLocalizationScene(ctx, phase, baseWidth, baseHeight) {
     phase > 0.5 ? `Found ${Math.ceil(phase * 3)} matches` : 'Scanning...'
   ]);
 
-  drawLabel(ctx, baseWidth / 2, baseHeight - 25, 'Localization finds where in the grid the current context matches', 'highlight');
 }
 
 /**
@@ -185,7 +247,6 @@ export function renderVotingScene(ctx, phase, baseWidth, baseHeight) {
     phase > 0.7 ? '3. Consensus reached!' : '3. Counting votes...'
   ]);
 
-  drawLabel(ctx, baseWidth / 2, baseHeight - 25, 'Columns vote on location - majority wins, conflicts detected', 'highlight');
 }
 
 /**
@@ -211,7 +272,6 @@ export function renderBranchingScene(ctx, phase, baseWidth, baseHeight) {
     ]);
   }
 
-  drawLabel(ctx, baseWidth / 2, baseHeight - 25, 'Paths can branch when context is ambiguous - pruned by new evidence', 'highlight');
 }
 
 /**
@@ -274,7 +334,6 @@ export function renderPredictionScene(ctx, phase, baseWidth, baseHeight) {
     phase > 0.5 ? '4. Compute error → learn' : '4. Waiting...'
   ]);
 
-  drawLabel(ctx, baseWidth / 2, baseHeight - 25, 'Columns predict BEFORE observing. Prediction error drives learning.', 'highlight');
 }
 
 /**
@@ -386,7 +445,6 @@ export function renderHeavyHittersScene(ctx, phase, baseWidth, baseHeight) {
   ctx.textAlign = 'right';
   ctx.fillText(`${Math.round(saturation * 100)}%`, meterX + 150, meterY + 31);
 
-  drawLabel(ctx, baseWidth / 2, baseHeight - 25, 'Each cell keeps only top-K tokens. Eviction prevents muddiness.', 'highlight');
 }
 
 /**
@@ -486,7 +544,6 @@ export function renderReplayScene(ctx, phase, baseWidth, baseHeight) {
     phase > 0.8 ? 'State reconstructed!' : 'Replaying events...'
   ]);
 
-  drawLabel(ctx, baseWidth / 2, baseHeight - 25, 'State is reconstructed by replaying events from the nearest checkpoint.', 'highlight');
 }
 
 /**
@@ -606,7 +663,6 @@ export function renderSlowMapsScene(ctx, phase, baseWidth, baseHeight) {
     'Abstract summaries'
   ]);
 
-  drawLabel(ctx, baseWidth / 2, baseHeight - 25, 'Fast maps for detail, slow maps for abstraction. Like cortical hierarchy.', 'highlight');
 }
 
 /**
@@ -763,7 +819,6 @@ export function renderReasoningScene(ctx, phase, baseWidth, baseHeight) {
     phase > 0.7 ? 'Chains = auditable derivations' : 'Building chain...'
   ]);
 
-  drawLabel(ctx, baseWidth / 2, baseHeight - 25, 'Reasoning is explicit: facts, patterns, bindings, derivation chains.', 'highlight');
 }
 
 /**
@@ -975,7 +1030,6 @@ export function renderVSAIndexScene(ctx, phase, baseWidth, baseHeight) {
     phase > 0.5 ? 'Similar → nearby on grid' : 'Binding = association'
   ]);
 
-  drawLabel(ctx, baseWidth / 2, baseHeight - 25, 'VSA enables semantic addressing: similar meanings map to nearby grid locations.', 'highlight');
 }
 
 /**
@@ -1132,7 +1186,134 @@ export function renderRetrievalScene(ctx, phase, baseWidth, baseHeight) {
     phase > 0.7 ? 'Emit supported answer' : 'Aggregating...'
   ]);
 
-  drawLabel(ctx, baseWidth / 2, baseHeight - 25, 'Every answer traces back to source facts with explicit evidence chains.', 'highlight');
+}
+
+/**
+ * Render Verdicts Scene - Answer contract categories
+ */
+export function renderVerdictsScene(ctx, phase, baseWidth, baseHeight) {
+  drawGridBackground(ctx, baseWidth, baseHeight);
+
+  const segment = Math.min(2, Math.floor(phase * 3));
+  const local = (phase * 3) - segment;
+  const modes = ['supported', 'conflicting', 'unsupported'];
+  const mode = modes[segment];
+
+  const palette = {
+    supported: COLORS.locMatch,
+    conflicting: COLORS.displacement,
+    unsupported: COLORS.muted
+  };
+
+  // Query box
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.95)';
+  ctx.beginPath();
+  ctx.roundRect(60, 55, 520, 58, 10);
+  ctx.fill();
+  ctx.strokeStyle = COLORS.vote;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  ctx.fillStyle = COLORS.vote;
+  ctx.font = 'bold 12px "Space Grotesk", sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('Question', 78, 78);
+  ctx.fillStyle = COLORS.text;
+  ctx.font = '13px "Space Grotesk", sans-serif';
+  ctx.fillText('"Where is Alice right now?"', 160, 78);
+
+  // Evidence cards
+  const cardY = 150;
+  const cardW = 330;
+  const cardH = 86;
+
+  const cardsByMode = {
+    supported: [
+      { title: 'Fact (doc-12)', text: 'Alice enters kitchen @ t=200', color: COLORS.path1 },
+      { title: 'Fact (doc-13)', text: 'No later movement found', color: COLORS.path2 }
+    ],
+    conflicting: [
+      { title: 'Claim A (doc-12)', text: 'Alice.location = kitchen @ t=200', color: COLORS.path1 },
+      { title: 'Claim B (doc-99)', text: 'Alice.location = lab @ t=200', color: COLORS.path4 }
+    ],
+    unsupported: [
+      { title: 'Retrieval', text: 'No matching facts for entity=Alice', color: COLORS.muted },
+      { title: 'Result', text: 'Evidence is insufficient to answer', color: COLORS.muted }
+    ]
+  };
+
+  const cards = cardsByMode[mode];
+  cards.forEach((card, idx) => {
+    const showAt = 0.15 + idx * 0.2;
+    if (local < showAt) return;
+    const alpha = Math.min(1, (local - showAt) / 0.2);
+    ctx.globalAlpha = alpha;
+
+    const x = 90 + idx * (cardW + 40);
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.95)';
+    ctx.beginPath();
+    ctx.roundRect(x, cardY, cardW, cardH, 10);
+    ctx.fill();
+    ctx.strokeStyle = card.color;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.fillStyle = card.color;
+    ctx.font = 'bold 11px "Space Grotesk", sans-serif';
+    ctx.fillText(card.title, x + 14, cardY + 26);
+    ctx.fillStyle = COLORS.text;
+    ctx.font = '12px "Space Grotesk", monospace';
+    ctx.fillText(card.text, x + 14, cardY + 54);
+
+    ctx.globalAlpha = 1;
+  });
+
+  // Verdict chips
+  const chipY = 290;
+  const chipX = 80;
+  const chipW = 200;
+  const chipH = 44;
+  const chipGap = 18;
+
+  const chipOrder = [
+    { id: 'supported', label: 'SUPPORTED', color: palette.supported },
+    { id: 'conflicting', label: 'CONFLICTING', color: palette.conflicting },
+    { id: 'unsupported', label: 'UNSUPPORTED', color: palette.unsupported }
+  ];
+
+  chipOrder.forEach((chip, idx) => {
+    const x = chipX + idx * (chipW + chipGap);
+    const active = chip.id === mode;
+
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.95)';
+    ctx.beginPath();
+    ctx.roundRect(x, chipY, chipW, chipH, 999);
+    ctx.fill();
+
+    ctx.strokeStyle = active ? chip.color : 'rgba(255, 255, 255, 0.12)';
+    ctx.lineWidth = active ? 2.5 : 1;
+    ctx.stroke();
+
+    ctx.fillStyle = chip.color;
+    ctx.font = 'bold 12px "Space Grotesk", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(chip.label, x + chipW / 2, chipY + 28);
+    ctx.textAlign = 'left';
+  });
+
+  // Explanation box
+  const hint = {
+    supported: 'Evidence chain fully backs the claim',
+    conflicting: 'Credible evidence disagrees on the value',
+    unsupported: 'Not enough evidence to answer safely'
+  }[mode];
+
+  drawInfoBox(ctx, baseWidth - 200, 50, 'Answer Contract', [
+    'Never guess',
+    'Always show provenance',
+    hint,
+    'Verdict is explicit'
+  ]);
 }
 
 /**
@@ -1285,7 +1466,6 @@ export function renderConflictScene(ctx, phase, baseWidth, baseHeight) {
     phase > 0.75 ? 'Emit with confidence' : 'Evaluating...'
   ]);
 
-  drawLabel(ctx, baseWidth / 2, baseHeight - 25, 'Conflicts are surfaced, not hidden. The system reports disagreements explicitly.', 'highlight');
 }
 
 /**
@@ -1448,7 +1628,6 @@ export function renderDerivationScene(ctx, phase, baseWidth, baseHeight) {
     phase > 0.7 ? 'Lineage is preserved' : 'Deriving...'
   ]);
 
-  drawLabel(ctx, baseWidth / 2, baseHeight - 25, 'Derivation chains are explicit. Ask "why?" and get the full reasoning path.', 'highlight');
 }
 
 /**
@@ -1593,5 +1772,96 @@ export function renderEntitiesScene(ctx, phase, baseWidth, baseHeight) {
     phase > 0.8 ? 'Unified knowledge graph' : 'Resolving...'
   ]);
 
-  drawLabel(ctx, baseWidth / 2, baseHeight - 25, 'Entity resolution unifies scattered mentions into coherent knowledge.', 'highlight');
+}
+
+/**
+ * Render Knobs Scene - Visualize tunable parameters and their tradeoffs
+ */
+export function renderKnobsScene(ctx, phase, baseWidth, baseHeight) {
+  drawGridBackground(ctx, baseWidth, baseHeight);
+
+  const knobs = [
+    {
+      label: 'Context length',
+      range: [1, 6],
+      value: 2,
+      note: 'More context reduces collisions but costs compute.'
+    },
+    {
+      label: 'Top-K per cell',
+      range: [2, 12],
+      value: 4,
+      note: 'More capacity reduces forgetting but increases muddiness.'
+    },
+    {
+      label: 'Number of columns',
+      range: [1, 9],
+      value: 3,
+      note: 'More columns improve consensus but increase cost.'
+    },
+    {
+      label: 'Checkpoint interval',
+      range: [20, 300],
+      value: 100,
+      note: 'More checkpoints speed replay but use storage.'
+    }
+  ];
+
+  const highlightIdx = Math.min(knobs.length - 1, Math.floor(phase * knobs.length));
+
+  const startX = 80;
+  const startY = 110;
+  const rowH = 72;
+  const barW = 420;
+  const barH = 10;
+
+  knobs.forEach((knob, idx) => {
+    const y = startY + idx * rowH;
+    const active = idx === highlightIdx;
+    const color = active ? COLORS.vote : COLORS.gridLine;
+
+    // Label
+    ctx.fillStyle = active ? COLORS.text : COLORS.muted;
+    ctx.font = 'bold 13px "Space Grotesk", sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(knob.label, startX, y);
+
+    // Range
+    ctx.fillStyle = COLORS.muted;
+    ctx.font = '11px "Space Grotesk", sans-serif';
+    ctx.fillText(`${knob.range[0]} … ${knob.range[1]}`, startX + barW - 60, y);
+
+    // Bar background
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+    ctx.beginPath();
+    ctx.roundRect(startX, y + 18, barW, barH, 999);
+    ctx.fill();
+
+    // Bar fill + marker
+    const t = (knob.value - knob.range[0]) / (knob.range[1] - knob.range[0]);
+    const fillW = Math.max(6, barW * Math.min(1, Math.max(0, t)));
+    ctx.fillStyle = active ? 'rgba(123, 141, 255, 0.55)' : 'rgba(123, 141, 255, 0.22)';
+    ctx.beginPath();
+    ctx.roundRect(startX, y + 18, fillW, barH, 999);
+    ctx.fill();
+
+    const mx = startX + fillW;
+    const my = y + 23;
+    ctx.fillStyle = active ? COLORS.vote : COLORS.muted;
+    ctx.beginPath();
+    ctx.arc(mx, my, active ? 7 : 6, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = color;
+    ctx.lineWidth = active ? 2 : 1;
+    ctx.beginPath();
+    ctx.roundRect(startX - 12, y - 14, barW + 24, 46, 14);
+    ctx.stroke();
+  });
+
+  drawInfoBox(ctx, baseWidth - 200, 50, 'Tunable Tradeoffs', [
+    'Interpretable parameters',
+    'No hidden magic',
+    knobs[highlightIdx]?.note ?? 'Tune for your workload'
+  ]);
 }

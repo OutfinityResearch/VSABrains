@@ -9,10 +9,10 @@ import { loadNarrations } from './narrations.js';
 import {
   renderGridScene, renderDisplacementScene, renderPathScene,
   renderMultiColumnScene, renderLocalizationScene, renderVotingScene,
-  renderBranchingScene, renderPredictionScene, renderHeavyHittersScene,
+  renderAlignmentScene, renderBranchingScene, renderPredictionScene, renderHeavyHittersScene,
   renderReplayScene, renderSlowMapsScene, renderReasoningScene,
   renderVSAIndexScene, renderRetrievalScene, renderConflictScene,
-  renderDerivationScene, renderEntitiesScene
+  renderVerdictsScene, renderDerivationScene, renderEntitiesScene, renderKnobsScene
 } from './scenes.js';
 
 // DOM elements - will be initialized in init()
@@ -72,6 +72,11 @@ function setPlayingState(nextPlaying) {
   // Keep narration synced with animation state.
   if (!playing && wasPlaying) {
     speech.pause();
+    // Some browsers are flaky with pause(); fall back to cancel so audio never runs
+    // while the visuals are paused.
+    if (speech.isSpeaking() && !speech.isPaused()) {
+      speech.stop();
+    }
   }
 
   if (playing && !wasPlaying) {
@@ -215,6 +220,9 @@ function render() {
     case 'multicolumn':
       renderMultiColumnScene(ctx, phase, baseWidth, baseHeight);
       break;
+    case 'alignment':
+      renderAlignmentScene(ctx, phase, baseWidth, baseHeight);
+      break;
     case 'localization':
       renderLocalizationScene(ctx, phase, baseWidth, baseHeight);
       break;
@@ -245,6 +253,9 @@ function render() {
     case 'retrieval':
       renderRetrievalScene(ctx, phase, baseWidth, baseHeight);
       break;
+    case 'verdicts':
+      renderVerdictsScene(ctx, phase, baseWidth, baseHeight);
+      break;
     case 'conflict':
       renderConflictScene(ctx, phase, baseWidth, baseHeight);
       break;
@@ -253,6 +264,9 @@ function render() {
       break;
     case 'entities':
       renderEntitiesScene(ctx, phase, baseWidth, baseHeight);
+      break;
+    case 'knobs':
+      renderKnobsScene(ctx, phase, baseWidth, baseHeight);
       break;
   }
 
