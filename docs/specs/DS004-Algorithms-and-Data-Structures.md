@@ -479,14 +479,70 @@ async function localize(windowStepTokenIds, locationIndex, topK = 20, config = {
 }
 ```
 
-### 6.3 Optional Verification by Replay
+### 6.3 Verification by Replay
 
-For each candidate location:
-- Replay displacement over the same `windowStepTokenIds`
-- At each visited cell, check whether the expected token exists in `GridMap.readTopK(...)`
-- Accumulate a deterministic `verifiedScore`
+For each candidate location, replay displacement and verify grid content:
 
-Candidates can then be re-ranked by `verifiedScore` (or combined with the index score).
+1. Start at candidate's `location`
+2. For each token in `windowStepTokenIds`:
+   - Check if token exists in `GridMap.readTopK(x, y, k)`
+   - Compute displacement and move to next location
+3. Compute `verifiedScore = matches / windowLength`
+
+**Verifier.scoreCandidate() Pseudocode:**
+
+```javascript
+async function scoreCandidate(candidate, windowStepTokens) {
+  const column = findColumn(candidate.columnId);
+  const trajectory = column.simulateTrajectory(candidate.location, windowStepTokens);
+  return column.verifyTrajectory(trajectory);
+}
+
+function verifyTrajectory(trajectory) {
+  let matches = 0;
+  for (const { location, token } of trajectory) {
+    const stored = map.readTopK(location.x, location.y, k);
+    if (stored.map(([id]) => id).includes(token)) matches++;
+  }
+  return matches / trajectory.length;
+}
+```
+
+**Re-ranking with verified scores:**
+
+Candidates can be ranked by `combinedScore = (indexScore + verifiedScore) / 2` for robust localization.
+
+### 6.4 Column Prediction
+
+Each column independently predicts the next token based on its current location in the reference frame (DS001: "many models voting").
+
+**Column.predict() contract:**
+
+```javascript
+async function predict(context) {
+  const { x, y } = this.location;
+  const topTokens = map.readTopK(x, y, k);
+  
+  const [primaryTokenId, primaryCount] = topTokens[0];
+  const totalCount = topTokens.reduce((acc, [, c]) => acc + c, 0);
+  
+  return {
+    value: primaryTokenId,
+    score: primaryCount / totalCount,
+    alternatives: topTokens.slice(1).map(...)
+  };
+}
+```
+
+**Multi-column consensus via Aggregator:**
+
+```javascript
+const predictions = await Promise.all(columns.map(c => c.predict(context)));
+const winner = voter.vote(predictions);
+const confidence = voter.confidence();
+```
+
+This implements the *Thousand Brains* principle: multiple columns maintain independent models and converge via voting.
 
 ---
 

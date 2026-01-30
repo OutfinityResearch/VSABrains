@@ -1,3 +1,14 @@
+/**
+ * Thousand Brains Tutorial - Grid-Based Path Visualization
+ * Based on VSABrains: Column, GridMap, Displacement
+ * 
+ * Key concepts:
+ * - Columns maintain location (x,y) on a 2D grid
+ * - Each step: write token at location → compute displacement → move
+ * - Paths through space = memory formation
+ * - Multiple columns = parallel models that vote
+ */
+
 const canvas = document.getElementById('tutorialCanvas');
 const ctx = canvas.getContext('2d');
 const playBtn = document.getElementById('tutorialPlay');
@@ -14,6 +25,7 @@ const sceneBullets = document.getElementById('sceneBullets');
 const sceneKey = document.getElementById('sceneKey');
 const sceneSignals = document.getElementById('sceneSignals');
 
+// High-DPI canvas setup
 const dpr = window.devicePixelRatio || 1;
 const baseWidth = canvas.width;
 const baseHeight = canvas.height;
@@ -21,145 +33,1531 @@ canvas.width = Math.floor(baseWidth * dpr);
 canvas.height = Math.floor(baseHeight * dpr);
 ctx.scale(dpr, dpr);
 
-const GRID = { cols: 12, rows: 8 };
-const CELL = { w: baseWidth / GRID.cols, h: baseHeight / GRID.rows };
+// Colors
 const COLORS = {
-  a: '#7b8dff',
-  b: '#52f2c2',
-  c: '#ffd166',
-  d: '#f78ff0',
-  event: '#f97316',
-  trail: 'rgba(123,141,255,0.25)',
-  grid: 'rgba(255,255,255,0.08)',
-  text: '#e6ecff',
-  muted: 'rgba(230,236,255,0.6)'
+  bg: '#0f172a',
+  grid: 'rgba(99, 102, 241, 0.15)',
+  gridLine: 'rgba(99, 102, 241, 0.25)',
+  cell: 'rgba(99, 102, 241, 0.3)',
+  cellActive: '#818cf8',
+  cellHighlight: '#a5b4fc',
+
+  // Paths for different columns
+  path1: '#f472b6',
+  path2: '#22d3ee',
+  path3: '#4ade80',
+  path4: '#fbbf24',
+
+  token: '#e879f9',
+  tokenFade: 'rgba(232, 121, 249, 0.3)',
+
+  displacement: '#f97316',
+  displacementArrow: '#fb923c',
+
+  locMatch: '#22c55e',
+  locMatchFade: 'rgba(34, 197, 94, 0.2)',
+
+  vote: '#8b5cf6',
+  voteWin: '#22c55e',
+
+  text: '#e2e8f0',
+  muted: 'rgba(226, 232, 240, 0.5)',
+  textDark: 'rgba(0, 0, 0, 0.7)'
 };
 
+// Scene definitions
 const SCENES = [
   {
-    id: 'reference',
-    title: 'Reference frames',
-    summary: 'Each column has its own local coordinate system. They observe the same sensory event, but from different positions.',
+    id: 'grid',
+    title: 'The Grid - Where Memory Lives',
+    summary: 'Memory is stored in a 2D grid. Each cell can hold multiple tokens. As the column moves through the grid, it writes tokens at each location it visits.',
     bullets: [
-      'Columns are independent “witnesses.”',
-      'Same event → different coordinates.',
-      'Diversity makes consensus possible.'
+      'Grid is 64×64 cells (we show a zoomed portion)',
+      'Each cell holds top-K tokens (like a mini-memory)',
+      'Writing tokens = forming memories',
+      'Location + token = addressable content'
     ],
-    key: 'Reference frames mean each column tracks the world from its own perspective.',
-    signals: ['sensory input', 'column locations', 'local coordinates'],
-    duration: 7
+    key: 'The grid is a 2D address space. Tokens at locations form the memory substrate.',
+    signals: ['cell write', 'token storage', 'grid location'],
+    duration: 9
   },
   {
-    id: 'learning',
-    title: 'Learning & writing',
-    summary: 'Columns move and write tokens into the grid. Each step creates a traceable path.',
+    id: 'displacement',
+    title: 'Displacement - Context Determines Movement',
+    summary: 'Movement through the grid isn\'t random. The last N tokens are hashed to compute (dx, dy). Same context → same displacement. Different context → different path.',
     bullets: [
-      'Write tokens at the current cell.',
-      'Move by a deterministic displacement.',
-      'The path becomes the memory.'
+      'Hash recent tokens → displacement vector',
+      'Context window = 2 tokens',
+      'Max step = ±3 cells in each direction',
+      'Deterministic: same input → same path'
     ],
-    key: 'Time is stored as space: “when” becomes “where.”',
-    signals: ['write pulse', 'trajectory trail', 'cell activation'],
-    duration: 7
+    key: 'Movement is determined by content. Similar sequences follow similar paths.',
+    signals: ['context hash', 'dx/dy vector', 'path determinism'],
+    duration: 9
   },
   {
-    id: 'movement',
-    title: 'Movement signals',
-    summary: 'Movement is not random. It is computed from the recent token context, so similar events move similarly.',
+    id: 'path',
+    title: 'A Path Through Space',
+    summary: 'A column traces a path through the grid as it processes tokens. At each step: (1) write tokens at current location, (2) compute displacement, (3) move. The path IS the representation.',
     bullets: [
-      'Displacement depends on recent tokens.',
-      'Similar context → similar movement.',
-      'This enables localization.'
+      'Each step: write then move',
+      'Path = sequence of (location, token) pairs',
+      'The trajectory encodes the sequence order',
+      'Time becomes space'
     ],
-    key: 'Movement encodes the context window without superposition.',
-    signals: ['context buffer', 'direction cue', 'step window'],
-    duration: 7
+    key: 'Sequences are stored as paths. The trajectory through space IS the memory.',
+    signals: ['path trace', 'step sequence', 'spatial encoding'],
+    duration: 9
   },
   {
-    id: 'consensus',
-    title: 'Consensus voting',
-    summary: 'Each column proposes a candidate location. The system aggregates votes into a single, robust answer.',
+    id: 'multicolumn',
+    title: 'Multiple Columns, Different Views',
+    summary: 'Multiple columns process the same input but start at different locations. They trace different paths but create correlated patterns. Each column is an independent "witness".',
     bullets: [
-      'Columns disagree under noise.',
-      'Consensus selects the most supported location.',
-      'Disagreement is measured, not hidden.'
+      'Same tokens, different starting offsets',
+      'Paths differ but have similar structure',
+      'Each column = independent model',
+      'Redundancy enables robust consensus'
     ],
-    key: 'Consensus reduces noise without losing traceability.',
-    signals: ['candidate points', 'vote ring', 'consensus marker'],
-    duration: 7
+    key: 'Many columns = many perspectives on the same sequence.',
+    signals: ['column offsets', 'parallel paths', 'multi-model'],
+    duration: 9
   },
   {
-    id: 'growth',
-    title: 'New columns & specialization',
-    summary: 'A new column can be formed when novelty is high. It specializes on a new aspect of the story.',
+    id: 'localization',
+    title: 'Localization - Finding Where You Are',
+    summary: 'Given a context window, localization finds matching locations in the stored grid. It returns candidate positions with confidence scores. This is how the system "remembers" where it was.',
     bullets: [
-      'New column appears when needed.',
-      'Specialization reduces overload.',
-      'Old columns keep their own maps.'
+      'Query: recent token window',
+      'Search: find cells with matching tokens',
+      'Result: candidate locations + scores',
+      'Enables: replay from any point'
     ],
-    key: 'The system can grow more “brains” when the story demands it.',
-    signals: ['novelty pulse', 'new column', 'specialization'],
-    duration: 7
+    key: 'Localization = pattern matching on the grid to find stored contexts.',
+    signals: ['query window', 'candidate cells', 'match score'],
+    duration: 9
   },
   {
-    id: 'semantic',
-    title: 'Frames (semantic lenses)',
-    summary: 'Frames track higher-level meaning: emotion, theme, conflict, tone. They sit on top of events.',
+    id: 'voting',
+    title: 'Voting & Consensus',
+    summary: 'Each column proposes a location. Through lateral connections, columns share beliefs and converge on the most-supported answer. Majority wins, conflicts are detected.',
     bullets: [
-      'Frames are tags, not new columns.',
-      'They are fast to query.',
-      'They make summaries possible.'
+      'Each column: "I think we\'re at X"',
+      'Columns share via lateral connections',
+      'Votes accumulate for each candidate',
+      'Winner = highest vote count'
     ],
-    key: 'Frames are the semantic shortcut layer.',
-    signals: ['emotion pulse', 'theme tag', 'conflict highlight'],
-    duration: 7
+    key: 'Consensus: independent models voting produces robust answers.',
+    signals: ['candidate votes', 'lateral share', 'consensus winner'],
+    duration: 9
+  },
+  {
+    id: 'branching',
+    title: 'Branching Paths & Complexity',
+    summary: 'Paths can branch when contexts match multiple stored patterns. The system maintains multiple hypotheses until evidence disambiguates. This handles ambiguity gracefully.',
+    bullets: [
+      'Ambiguous context → multiple matches',
+      'Branches represent alternative hypotheses',
+      'New evidence prunes unlikely branches',
+      'Checkpoints enable efficient replay'
+    ],
+    key: 'Branching paths = multiple hypotheses maintained until evidence decides.',
+    signals: ['branch point', 'hypothesis', 'disambiguation'],
+    duration: 9
+  },
+  {
+    id: 'prediction',
+    title: 'Prediction Loop - Anticipate Before Observe',
+    summary: 'Columns predict the next token BEFORE receiving input. When the actual token arrives, prediction error signals learning. This is core to Thousand Brains: predict, observe, update.',
+    bullets: [
+      'Each column predicts next token at current location',
+      'Prediction comes from GridMap top-K at (x, y)',
+      'Actual token arrives → compute prediction error',
+      'Error drives learning and hypothesis pruning'
+    ],
+    key: 'The system anticipates before it observes. Prediction error is the learning signal.',
+    signals: ['predict', 'observe', 'error', 'update'],
+    duration: 9
+  },
+  {
+    id: 'heavyhitters',
+    title: 'Heavy-Hitters - Bounded Memory per Cell',
+    summary: 'Each grid cell can only store K tokens (e.g., K=4). When a 5th token arrives, the least frequent is evicted. This prevents cells from becoming "muddy" with too many tokens.',
+    bullets: [
+      'Each cell keeps top-K tokens by frequency',
+      'New token: increment count or evict minimum',
+      'Prevents unbounded memory per cell',
+      'Quality degrades gracefully under saturation'
+    ],
+    key: 'Heavy-hitters keep cells focused. Eviction prevents muddiness.',
+    signals: ['top-K', 'eviction', 'saturation', 'frequency'],
+    duration: 9
   },
   {
     id: 'replay',
-    title: 'Replay & recall',
-    summary: 'When a question is asked, the system replays from a checkpoint to rebuild state and verify answers.',
+    title: 'Replay & Checkpoints',
+    summary: 'To answer a query about past state, the system replays from a checkpoint. Checkpoints save column positions and displacement buffers. Replay reconstructs state deterministically.',
     bullets: [
-      'Checkpoint saves the past.',
-      'Replay rebuilds the timeline.',
-      'Answers cite evidence.'
+      'Checkpoint = saved column positions + buffers',
+      'Replay = apply events from checkpoint to target',
+      'State is reconstructed, not stored',
+      'Trade-off: checkpoint frequency vs replay cost'
     ],
-    key: 'Replay makes answers auditable, not guessed.',
-    signals: ['rewind trail', 'checkpoint', 'evidence chain'],
-    duration: 7
+    key: 'State is not stored directly—it is reconstructed by replay from checkpoints.',
+    signals: ['checkpoint', 'replay', 'state reconstruction'],
+    duration: 9
+  },
+  {
+    id: 'slowmaps',
+    title: 'Slow Maps - Multi-Timescale Memory',
+    summary: 'Fast maps write every step. Slow maps write summaries every N steps (e.g., N=10). This mirrors cortical hierarchy: higher levels process at slower timescales.',
+    bullets: [
+      'Fast map: writes every step (detailed)',
+      'Slow map: writes summary every N steps (abstract)',
+      'Summaries capture entities, predicates, trends',
+      'Enables efficient long-range retrieval'
+    ],
+    key: 'Multiple timescales: fast for detail, slow for abstraction.',
+    signals: ['fast map', 'slow map', 'window summary', 'timescale'],
+    duration: 9
+  },
+  {
+    id: 'reasoning',
+    title: 'Work Signatures - Auditable Reasoning',
+    summary: 'For auditable reasoning, facts are stored as role→value maps (Work Signatures). Pattern matching with variables (?x) enables rule-based inference with explicit bindings.',
+    bullets: [
+      'Fact = { subject, predicate, object }',
+      'Pattern = signature with variables (?x)',
+      'Unification binds variables to values',
+      'Chains form auditable derivations'
+    ],
+    key: 'Reasoning is explicit and inspectable. No hidden vectors, just bindings.',
+    signals: ['WorkSignature', 'unification', 'binding', 'derivation'],
+    duration: 9
   }
 ];
 
-const TOTAL_DURATION = SCENES.reduce((acc, scene) => acc + scene.duration, 0);
-const STEPS_PER_SCENE = 18;
-const stepPaths = buildPaths(STEPS_PER_SCENE * SCENES.length);
+const TOTAL_DURATION = SCENES.reduce((acc, s) => acc + s.duration, 0);
 
+// Animation state
 let playing = true;
 let lastTime = performance.now();
 let timeline = 0;
 let speed = sliderToSpeed(Number(speedInput.value));
 
-function buildPaths(steps) {
-  const paths = [
-    { color: COLORS.a, points: [] },
-    { color: COLORS.b, points: [] },
-    { color: COLORS.c, points: [] },
-    { color: COLORS.d, points: [] }
-  ];
+// Precomputed paths for visualization
+const GRID_VIEW = { startX: 10, startY: 10, size: 12 }; // 12x12 visible portion
+const CELL_SIZE = 38;
+const GRID_OFFSET = { x: 60, y: 50 };
 
-  for (let i = 0; i < steps; i += 1) {
-    const t = i / steps;
-    paths[0].points.push(wrapPoint(2 + Math.sin(t * 6.2) * 3, 2 + Math.cos(t * 5.4) * 2));
-    paths[1].points.push(wrapPoint(5 + Math.sin(t * 4.8 + 1.1) * 3.2, 3 + Math.cos(t * 6.1 + 0.7) * 2.4));
-    paths[2].points.push(wrapPoint(8 + Math.sin(t * 5.2 + 2.2) * 2.8, 5 + Math.cos(t * 4.3 + 1.7) * 2.2));
-    paths[3].points.push(wrapPoint(3 + Math.sin(t * 6.6 + 0.4) * 3.1, 6 + Math.cos(t * 5.8 + 2.4) * 2.0));
+// Generate sample paths
+function generatePath(startX, startY, tokens, seed) {
+  const path = [{ x: startX, y: startY, token: tokens[0] }];
+  let x = startX, y = startY;
+
+  for (let i = 1; i < tokens.length; i++) {
+    // Simple hash-like displacement
+    const hash = (tokens[i] * 31 + tokens[i - 1] * 17 + seed) >>> 0;
+    const dx = (hash % 7) - 3;
+    const dy = ((hash >>> 8) % 7) - 3;
+
+    x = ((x + dx) % 64 + 64) % 64;
+    y = ((y + dy) % 64 + 64) % 64;
+
+    path.push({ x, y, token: tokens[i], dx, dy });
   }
-  return paths;
+  return path;
 }
 
-function wrapPoint(x, y) {
-  const nx = (x % GRID.cols + GRID.cols) % GRID.cols;
-  const ny = (y % GRID.rows + GRID.rows) % GRID.rows;
-  return { x: nx, y: ny };
+// Sample token sequence
+const TOKENS = [42, 17, 89, 23, 56, 78, 34, 91, 45, 12, 67, 88, 33, 55, 77, 99, 11, 44, 66, 22];
+
+// Generate paths for multiple columns
+const PATHS = [
+  generatePath(15, 14, TOKENS, 0),
+  generatePath(18, 16, TOKENS, 100),
+  generatePath(13, 18, TOKENS, 200)
+];
+
+// ==================== DRAWING FUNCTIONS ====================
+
+function drawGridBackground() {
+  // Background
+  const gradient = ctx.createRadialGradient(baseWidth / 2, baseHeight / 2, 0, baseWidth / 2, baseHeight / 2, baseWidth);
+  gradient.addColorStop(0, '#1e293b');
+  gradient.addColorStop(1, COLORS.bg);
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, baseWidth, baseHeight);
+}
+
+function drawGrid(highlightCells = [], activeCell = null, showTokens = false) {
+  const { startX, startY, size } = GRID_VIEW;
+
+  // Draw cells
+  for (let row = 0; row < size; row++) {
+    for (let col = 0; col < size; col++) {
+      const gx = startX + col;
+      const gy = startY + row;
+      const px = GRID_OFFSET.x + col * CELL_SIZE;
+      const py = GRID_OFFSET.y + row * CELL_SIZE;
+
+      // Cell background
+      const isHighlighted = highlightCells.some(c => c.x === gx && c.y === gy);
+      const isActive = activeCell && activeCell.x === gx && activeCell.y === gy;
+
+      if (isActive) {
+        ctx.fillStyle = COLORS.cellActive;
+        ctx.shadowColor = COLORS.cellActive;
+        ctx.shadowBlur = 15;
+      } else if (isHighlighted) {
+        ctx.fillStyle = COLORS.cellHighlight;
+        ctx.shadowBlur = 0;
+      } else {
+        ctx.fillStyle = COLORS.cell;
+        ctx.shadowBlur = 0;
+      }
+
+      ctx.beginPath();
+      ctx.roundRect(px + 1, py + 1, CELL_SIZE - 2, CELL_SIZE - 2, 4);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // Draw tokens in cell if requested
+      if (showTokens && isHighlighted) {
+        const cellTokens = highlightCells.find(c => c.x === gx && c.y === gy)?.tokens || [];
+        drawCellTokens(px, py, cellTokens);
+      }
+    }
+  }
+
+  // Grid lines
+  ctx.strokeStyle = COLORS.gridLine;
+  ctx.lineWidth = 1;
+
+  for (let i = 0; i <= size; i++) {
+    // Vertical
+    ctx.beginPath();
+    ctx.moveTo(GRID_OFFSET.x + i * CELL_SIZE, GRID_OFFSET.y);
+    ctx.lineTo(GRID_OFFSET.x + i * CELL_SIZE, GRID_OFFSET.y + size * CELL_SIZE);
+    ctx.stroke();
+
+    // Horizontal
+    ctx.beginPath();
+    ctx.moveTo(GRID_OFFSET.x, GRID_OFFSET.y + i * CELL_SIZE);
+    ctx.lineTo(GRID_OFFSET.x + size * CELL_SIZE, GRID_OFFSET.y + i * CELL_SIZE);
+    ctx.stroke();
+  }
+
+  // Axis labels
+  ctx.fillStyle = COLORS.muted;
+  ctx.font = '10px "Space Grotesk", sans-serif';
+  ctx.textAlign = 'center';
+
+  for (let i = 0; i < size; i += 2) {
+    // X axis
+    ctx.fillText(String(startX + i), GRID_OFFSET.x + i * CELL_SIZE + CELL_SIZE / 2, GRID_OFFSET.y - 8);
+    // Y axis
+    ctx.textAlign = 'right';
+    ctx.fillText(String(startY + i), GRID_OFFSET.x - 8, GRID_OFFSET.y + i * CELL_SIZE + CELL_SIZE / 2 + 3);
+    ctx.textAlign = 'center';
+  }
+}
+
+function drawCellTokens(px, py, tokens) {
+  const maxTokens = 4;
+  const tokenSize = 6;
+  const positions = [
+    { dx: 8, dy: 10 },
+    { dx: 22, dy: 10 },
+    { dx: 8, dy: 24 },
+    { dx: 22, dy: 24 }
+  ];
+
+  tokens.slice(0, maxTokens).forEach((token, i) => {
+    ctx.fillStyle = COLORS.token;
+    ctx.beginPath();
+    ctx.arc(px + positions[i].dx, py + positions[i].dy, tokenSize, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Token value
+    ctx.fillStyle = COLORS.textDark;
+    ctx.font = 'bold 7px "Space Grotesk", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(String(token % 100), px + positions[i].dx, py + positions[i].dy);
+  });
+}
+
+function gridToPixel(gx, gy) {
+  const { startX, startY } = GRID_VIEW;
+  return {
+    x: GRID_OFFSET.x + (gx - startX) * CELL_SIZE + CELL_SIZE / 2,
+    y: GRID_OFFSET.y + (gy - startY) * CELL_SIZE + CELL_SIZE / 2
+  };
+}
+
+function isInView(gx, gy) {
+  const { startX, startY, size } = GRID_VIEW;
+  return gx >= startX && gx < startX + size && gy >= startY && gy < startY + size;
+}
+
+function drawPath(path, color, progress, showDisplacement = false) {
+  const visibleSteps = Math.floor(progress * path.length);
+  if (visibleSteps < 1) return;
+
+  // Draw path line
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 3;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  ctx.beginPath();
+  let started = false;
+
+  for (let i = 0; i < visibleSteps && i < path.length; i++) {
+    const point = path[i];
+    if (!isInView(point.x, point.y)) continue;
+
+    const { x, y } = gridToPixel(point.x, point.y);
+    if (!started) {
+      ctx.moveTo(x, y);
+      started = true;
+    } else {
+      ctx.lineTo(x, y);
+    }
+  }
+  ctx.stroke();
+
+  // Draw points on path
+  for (let i = 0; i < visibleSteps && i < path.length; i++) {
+    const point = path[i];
+    if (!isInView(point.x, point.y)) continue;
+
+    const { x, y } = gridToPixel(point.x, point.y);
+    const isCurrent = i === visibleSteps - 1;
+
+    ctx.beginPath();
+    ctx.fillStyle = isCurrent ? '#fff' : color;
+    ctx.shadowColor = isCurrent ? '#fff' : 'transparent';
+    ctx.shadowBlur = isCurrent ? 12 : 0;
+    ctx.arc(x, y, isCurrent ? 8 : 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // Step number
+    if (isCurrent || i === 0) {
+      ctx.fillStyle = COLORS.textDark;
+      ctx.font = 'bold 9px "Space Grotesk", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(String(i), x, y);
+    }
+
+    // Displacement arrow
+    if (showDisplacement && i > 0 && i === visibleSteps - 1 && point.dx !== undefined) {
+      drawDisplacementArrow(x, y, point.dx, point.dy);
+    }
+  }
+}
+
+function drawDisplacementArrow(x, y, dx, dy) {
+  const arrowLen = 25;
+  const angle = Math.atan2(dy, dx);
+  const endX = x + Math.cos(angle) * arrowLen;
+  const endY = y + Math.sin(angle) * arrowLen;
+
+  // Arrow line
+  ctx.strokeStyle = COLORS.displacement;
+  ctx.lineWidth = 2;
+  ctx.setLineDash([4, 2]);
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.lineTo(endX, endY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Arrow head
+  const headLen = 8;
+  ctx.fillStyle = COLORS.displacement;
+  ctx.beginPath();
+  ctx.moveTo(endX, endY);
+  ctx.lineTo(endX - headLen * Math.cos(angle - 0.4), endY - headLen * Math.sin(angle - 0.4));
+  ctx.lineTo(endX - headLen * Math.cos(angle + 0.4), endY - headLen * Math.sin(angle + 0.4));
+  ctx.closePath();
+  ctx.fill();
+
+  // Label
+  ctx.fillStyle = COLORS.text;
+  ctx.font = '11px "Space Grotesk", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(`(${dx >= 0 ? '+' : ''}${dx}, ${dy >= 0 ? '+' : ''}${dy})`, endX + 20, endY);
+}
+
+function drawLocalizationMatch(candidates, phase) {
+  candidates.forEach((cand, idx) => {
+    if (!isInView(cand.x, cand.y)) return;
+
+    const { x, y } = gridToPixel(cand.x, cand.y);
+    const pulse = 1 + Math.sin(phase * Math.PI * 4 + idx) * 0.2;
+
+    // Match circle
+    ctx.strokeStyle = COLORS.locMatch;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(x, y, 18 * pulse, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Confidence score
+    ctx.fillStyle = COLORS.locMatch;
+    ctx.font = 'bold 11px "Space Grotesk", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(`${(cand.score * 100).toFixed(0)}%`, x, y + 32);
+  });
+}
+
+function drawVotingCircle(columns, votes, winnerIdx, phase) {
+  const centerX = baseWidth - 150;
+  const centerY = baseHeight / 2;
+  const radius = 80;
+
+  // Background circle
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.8)';
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, radius + 20, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = COLORS.muted;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Column positions
+  columns.forEach((col, idx) => {
+    const angle = (idx / columns.length) * Math.PI * 2 - Math.PI / 2;
+    const cx = centerX + Math.cos(angle) * radius;
+    const cy = centerY + Math.sin(angle) * radius;
+
+    const isWinner = idx === winnerIdx;
+
+    // Column circle
+    ctx.fillStyle = isWinner ? COLORS.voteWin : col.color;
+    ctx.shadowColor = isWinner ? COLORS.voteWin : 'transparent';
+    ctx.shadowBlur = isWinner ? 15 : 0;
+    ctx.beginPath();
+    ctx.arc(cx, cy, isWinner ? 18 : 14, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // Vote count
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 12px "Space Grotesk", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(String(votes[idx]), cx, cy);
+
+    // Column label
+    ctx.fillStyle = COLORS.muted;
+    ctx.font = '10px "Space Grotesk", sans-serif';
+    ctx.fillText(`C${idx + 1}`, cx, cy + 28);
+  });
+
+  // Center consensus
+  if (winnerIdx >= 0 && phase > 0.6) {
+    ctx.fillStyle = COLORS.voteWin;
+    ctx.shadowColor = COLORS.voteWin;
+    ctx.shadowBlur = 20;
+    ctx.font = 'bold 28px "Space Grotesk", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('✓', centerX, centerY);
+    ctx.shadowBlur = 0;
+
+    ctx.fillStyle = COLORS.text;
+    ctx.font = '11px "Space Grotesk", sans-serif';
+    ctx.fillText('Consensus', centerX, centerY + 25);
+  }
+}
+
+function drawContextWindow(tokens, idx, x, y) {
+  const windowSize = 2;
+  const start = Math.max(0, idx - windowSize + 1);
+  const windowTokens = tokens.slice(start, idx + 1);
+
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+  ctx.beginPath();
+  ctx.roundRect(x - 50, y - 15, 100, 50, 8);
+  ctx.fill();
+
+  ctx.strokeStyle = COLORS.displacement;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  ctx.fillStyle = COLORS.muted;
+  ctx.font = '10px "Space Grotesk", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('Context Window', x, y);
+
+  ctx.fillStyle = COLORS.text;
+  ctx.font = 'bold 14px "Space Grotesk", sans-serif';
+  ctx.fillText(`[${windowTokens.join(', ')}]`, x, y + 20);
+}
+
+function drawBranchingPath(paths, phase) {
+  // Main path
+  const mainPath = paths[0];
+  const branchPoint = 8;
+
+  // Draw main path up to branch point
+  ctx.strokeStyle = COLORS.path1;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+
+  for (let i = 0; i < branchPoint && i < mainPath.length; i++) {
+    const { x, y } = gridToPixel(mainPath[i].x, mainPath[i].y);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // Draw branch point marker
+  if (phase > 0.3) {
+    const bp = mainPath[branchPoint];
+    if (isInView(bp.x, bp.y)) {
+      const { x, y } = gridToPixel(bp.x, bp.y);
+      const pulse = 1 + Math.sin(phase * 8) * 0.15;
+
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(x, y, 15 * pulse, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.fillStyle = COLORS.text;
+      ctx.font = '10px "Space Grotesk", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Branch', x, y - 25);
+    }
+  }
+
+  // Draw branches after branch point
+  if (phase > 0.5) {
+    const branchPhase = (phase - 0.5) / 0.5;
+    const visibleAfterBranch = Math.floor(branchPhase * (mainPath.length - branchPoint));
+
+    // Branch 1 (original path)
+    ctx.strokeStyle = COLORS.path1;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 3]);
+    ctx.beginPath();
+    for (let i = branchPoint; i < branchPoint + visibleAfterBranch && i < mainPath.length; i++) {
+      const { x, y } = gridToPixel(mainPath[i].x, mainPath[i].y);
+      if (i === branchPoint) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+
+    // Branch 2 (alternative)
+    if (paths[1]) {
+      ctx.strokeStyle = COLORS.path2;
+      ctx.beginPath();
+      for (let i = branchPoint; i < branchPoint + visibleAfterBranch && i < paths[1].length; i++) {
+        const { x, y } = gridToPixel(paths[1][i].x, paths[1][i].y);
+        if (i === branchPoint) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+  }
+
+  // Labels
+  if (phase > 0.7) {
+    ctx.fillStyle = COLORS.path1;
+    ctx.font = '10px "Space Grotesk", sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('Hypothesis A', baseWidth - 140, 80);
+
+    ctx.fillStyle = COLORS.path2;
+    ctx.fillText('Hypothesis B', baseWidth - 140, 100);
+  }
+}
+
+function drawLabel(x, y, text, style = 'normal', align = 'center') {
+  ctx.fillStyle = style === 'highlight' ? COLORS.text : COLORS.muted;
+  ctx.font = style === 'highlight' ? 'bold 13px "Space Grotesk", sans-serif' : '12px "Space Grotesk", sans-serif';
+  ctx.textAlign = align;
+  ctx.fillText(text, x, y);
+}
+
+function drawInfoBox(x, y, title, lines) {
+  const padding = 12;
+  const lineHeight = 18;
+  const width = 180;
+  const height = padding * 2 + lineHeight * (lines.length + 1);
+
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+  ctx.beginPath();
+  ctx.roundRect(x, y, width, height, 8);
+  ctx.fill();
+
+  ctx.strokeStyle = COLORS.muted;
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  ctx.fillStyle = COLORS.text;
+  ctx.font = 'bold 12px "Space Grotesk", sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText(title, x + padding, y + padding + 12);
+
+  ctx.fillStyle = COLORS.muted;
+  ctx.font = '11px "Space Grotesk", sans-serif';
+  lines.forEach((line, i) => {
+    ctx.fillText(line, x + padding, y + padding + 12 + (i + 1) * lineHeight);
+  });
+}
+
+// ==================== SCENE RENDERERS ====================
+
+function renderGridScene(phase) {
+  drawGridBackground();
+
+  // Highlight some cells with tokens
+  const highlightedCells = [
+    { x: 12, y: 12, tokens: [42, 17] },
+    { x: 14, y: 13, tokens: [89, 23, 56] },
+    { x: 15, y: 15, tokens: [78] },
+    { x: 13, y: 16, tokens: [34, 91, 45, 12] }
+  ];
+
+  // Active cell animates
+  const activeIdx = Math.floor(phase * 4) % highlightedCells.length;
+  const activeCell = highlightedCells[activeIdx];
+
+  drawGrid(highlightedCells, activeCell, true);
+
+  // Info box
+  drawInfoBox(baseWidth - 200, 50, 'Grid Cell', [
+    'Stores top-K tokens',
+    'Each write adds to cell',
+    'Location = address'
+  ]);
+
+  // Animated write indicator
+  const { x, y } = gridToPixel(activeCell.x, activeCell.y);
+  const pulse = Math.sin(phase * Math.PI * 6) * 0.5 + 0.5;
+
+  ctx.strokeStyle = `rgba(232, 121, 249, ${pulse})`;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(x, y, 22 + pulse * 5, 0, Math.PI * 2);
+  ctx.stroke();
+
+  drawLabel(x, y - 35, 'Writing token...', 'highlight');
+
+  // Title
+  drawLabel(baseWidth / 2, baseHeight - 25, 'Memory = tokens written at locations in a 2D grid', 'highlight');
+}
+
+function renderDisplacementScene(phase) {
+  drawGridBackground();
+  drawGrid([], null, false);
+
+  const path = PATHS[0];
+  const stepIdx = Math.floor(phase * (path.length - 1));
+  const currentStep = path[stepIdx];
+
+  // Draw partial path
+  drawPath(path, COLORS.path1, (stepIdx + 1) / path.length, true);
+
+  // Show context window
+  if (stepIdx > 0) {
+    drawContextWindow(TOKENS, stepIdx, baseWidth - 120, baseHeight - 80);
+  }
+
+  // Info about displacement
+  if (currentStep && currentStep.dx !== undefined) {
+    drawInfoBox(baseWidth - 200, 50, 'Displacement', [
+      `Context: [${TOKENS[Math.max(0, stepIdx - 1)]}, ${TOKENS[stepIdx]}]`,
+      `Hash → (dx, dy)`,
+      `Move: (${currentStep.dx}, ${currentStep.dy})`
+    ]);
+  }
+
+  drawLabel(baseWidth / 2, baseHeight - 25, 'Context tokens are hashed to compute displacement vector', 'highlight');
+}
+
+function renderPathScene(phase) {
+  drawGridBackground();
+
+  const path = PATHS[0];
+  const visibleCells = path.slice(0, Math.floor(phase * path.length)).map(p => ({ x: p.x, y: p.y, tokens: [p.token] }));
+
+  drawGrid(visibleCells, null, true);
+  drawPath(path, COLORS.path1, phase, false);
+
+  // Step counter
+  const stepCount = Math.floor(phase * path.length);
+  drawInfoBox(baseWidth - 200, 50, 'Path Progress', [
+    `Step: ${stepCount} / ${path.length}`,
+    `Tokens written: ${stepCount}`,
+    `Cells visited: ${new Set(path.slice(0, stepCount).map(p => `${p.x},${p.y}`)).size}`
+  ]);
+
+  drawLabel(baseWidth / 2, baseHeight - 25, 'The path through space encodes the sequence - time becomes space', 'highlight');
+}
+
+function renderMultiColumnScene(phase) {
+  drawGridBackground();
+  drawGrid([], null, false);
+
+  const colors = [COLORS.path1, COLORS.path2, COLORS.path3];
+
+  // Draw all paths
+  PATHS.forEach((path, idx) => {
+    drawPath(path, colors[idx], phase, false);
+  });
+
+  // Column legend
+  ctx.fillStyle = COLORS.text;
+  ctx.font = 'bold 12px "Space Grotesk", sans-serif';
+  ctx.textAlign = 'left';
+
+  colors.forEach((color, idx) => {
+    const ly = 60 + idx * 25;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(baseWidth - 180, ly, 6, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = COLORS.text;
+    ctx.fillText(`Column ${idx + 1} (offset: ${[15, 18, 13][idx]}, ${[14, 16, 18][idx]})`, baseWidth - 165, ly + 4);
+  });
+
+  drawLabel(baseWidth / 2, baseHeight - 25, 'Same input, different starting positions → different but correlated paths', 'highlight');
+}
+
+function renderLocalizationScene(phase) {
+  drawGridBackground();
+
+  // Show some path
+  const path = PATHS[0];
+  drawGrid(path.slice(0, 10).map(p => ({ x: p.x, y: p.y, tokens: [p.token] })), null, false);
+  drawPath(path.slice(0, 10), COLORS.path1, 1, false);
+
+  // Localization candidates
+  const candidates = [
+    { x: 15, y: 15, score: 0.92 },
+    { x: 17, y: 14, score: 0.67 },
+    { x: 14, y: 17, score: 0.45 }
+  ];
+
+  if (phase > 0.3) {
+    drawLocalizationMatch(candidates.slice(0, Math.ceil(phase * 3)), phase);
+  }
+
+  // Query window
+  drawInfoBox(baseWidth - 200, 50, 'Localization Query', [
+    `Window: [${TOKENS[6]}, ${TOKENS[7]}]`,
+    'Searching stored patterns...',
+    phase > 0.5 ? `Found ${Math.ceil(phase * 3)} matches` : 'Scanning...'
+  ]);
+
+  drawLabel(baseWidth / 2, baseHeight - 25, 'Localization finds where in the grid the current context matches', 'highlight');
+}
+
+function renderVotingScene(phase) {
+  drawGridBackground();
+  drawGrid([], null, false);
+
+  // Show paths converging
+  const colors = [COLORS.path1, COLORS.path2, COLORS.path3];
+  PATHS.forEach((path, idx) => {
+    drawPath(path.slice(0, 5), colors[idx], 1, false);
+  });
+
+  // Voting visualization
+  const columns = [
+    { color: COLORS.path1 },
+    { color: COLORS.path2 },
+    { color: COLORS.path3 }
+  ];
+
+  const votes = [3, 2, 3]; // Votes for their proposed location
+  const winnerIdx = phase > 0.7 ? 0 : -1; // Column 1 wins (tied, but first)
+
+  drawVotingCircle(columns, votes, winnerIdx, phase);
+
+  drawInfoBox(55, 380, 'Voting Process', [
+    '1. Each column proposes location',
+    '2. Votes are shared laterally',
+    phase > 0.7 ? '3. Consensus reached!' : '3. Counting votes...'
+  ]);
+
+  drawLabel(baseWidth / 2, baseHeight - 25, 'Columns vote on location - majority wins, conflicts detected', 'highlight');
+}
+
+function renderBranchingScene(phase) {
+  drawGridBackground();
+  drawGrid([], null, false);
+
+  drawBranchingPath(PATHS, phase);
+
+  drawInfoBox(baseWidth - 200, 150, 'Branching', [
+    'Ambiguous context detected',
+    'Multiple hypotheses active',
+    phase > 0.7 ? 'Evidence will disambiguate' : 'Exploring alternatives...'
+  ]);
+
+  if (phase > 0.8) {
+    drawInfoBox(55, 380, 'Resolution', [
+      'New tokens arrive',
+      'One branch becomes unlikely',
+      'System prunes hypothesis'
+    ]);
+  }
+
+  drawLabel(baseWidth / 2, baseHeight - 25, 'Paths can branch when context is ambiguous - pruned by new evidence', 'highlight');
+}
+
+// ==================== NEW SCENES: Prediction, Heavy-Hitters, Replay, Slow Maps ====================
+
+function renderPredictionScene(phase) {
+  drawGridBackground();
+  drawGrid([], null, false);
+
+  const path = PATHS[0];
+  const stepIdx = Math.min(Math.floor(phase * 8) + 3, path.length - 1);
+
+  // Draw path up to current position
+  drawPath(path.slice(0, stepIdx), COLORS.path1, 1, false);
+
+  // Current position
+  const current = path[stepIdx];
+  if (current && isInView(current.x, current.y)) {
+    const { x, y } = gridToPixel(current.x, current.y);
+
+    // Prediction bubble
+    const predPhase = (phase * 4) % 1;
+    if (predPhase < 0.5) {
+      // Show prediction
+      ctx.fillStyle = 'rgba(139, 92, 246, 0.3)';
+      ctx.beginPath();
+      ctx.arc(x, y, 25 + predPhase * 10, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#a78bfa';
+      ctx.font = 'bold 11px "Space Grotesk", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Predicting...', x, y - 35);
+
+      // Show predicted token
+      const nextToken = path[stepIdx + 1]?.token ?? '?';
+      ctx.fillStyle = COLORS.vote;
+      ctx.font = 'bold 14px "Space Grotesk", sans-serif';
+      ctx.fillText(`→ ${nextToken}`, x + 40, y);
+    } else {
+      // Show actual token arrival
+      const actualToken = path[stepIdx]?.token ?? 0;
+      ctx.fillStyle = COLORS.locMatch;
+      ctx.beginPath();
+      ctx.arc(x, y, 22, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 12px "Space Grotesk", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(String(actualToken), x, y + 4);
+
+      // Show prediction error indicator
+      const error = predPhase > 0.7;
+      if (error) {
+        ctx.fillStyle = error ? COLORS.locMatch : '#ef4444';
+        ctx.font = '10px "Space Grotesk", sans-serif';
+        ctx.fillText(error ? '✓ Match' : '✗ Error', x, y + 38);
+      }
+    }
+  }
+
+  // Info box
+  drawInfoBox(baseWidth - 200, 50, 'Prediction Loop', [
+    '1. Read top-K at location',
+    '2. Predict next token',
+    '3. Observe actual token',
+    phase > 0.5 ? '4. Compute error → learn' : '4. Waiting...'
+  ]);
+
+  drawLabel(baseWidth / 2, baseHeight - 25, 'Columns predict BEFORE observing. Prediction error drives learning.', 'highlight');
+}
+
+function renderHeavyHittersScene(phase) {
+  drawGridBackground();
+
+  // Show a single cell being filled
+  const cellX = 14;
+  const cellY = 14;
+  const px = GRID_OFFSET.x + (cellX - GRID_VIEW.startX) * CELL_SIZE;
+  const py = GRID_OFFSET.y + (cellY - GRID_VIEW.startY) * CELL_SIZE;
+
+  // Draw grid with one highlighted cell
+  drawGrid([{ x: cellX, y: cellY, tokens: [] }], { x: cellX, y: cellY }, false);
+
+  // Simulate tokens arriving at the cell
+  const K = 4;
+  const tokensArriving = [42, 17, 89, 23, 56]; // 5 tokens, K=4
+  const numArrived = Math.min(Math.floor(phase * 6), tokensArriving.length);
+
+  // Draw cell contents
+  const cellContents = tokensArriving.slice(0, Math.min(numArrived, K));
+  const evicted = numArrived > K ? tokensArriving[0] : null; // First token gets evicted
+
+  // Token positions in cell
+  const positions = [
+    { dx: 8, dy: 10 },
+    { dx: 22, dy: 10 },
+    { dx: 8, dy: 24 },
+    { dx: 22, dy: 24 }
+  ];
+
+  cellContents.forEach((token, i) => {
+    const isEvicted = evicted && i === 0 && numArrived > K;
+    ctx.fillStyle = isEvicted ? 'rgba(239, 68, 68, 0.5)' : COLORS.token;
+    ctx.beginPath();
+    ctx.arc(px + positions[i].dx, py + positions[i].dy, 8, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = isEvicted ? '#fca5a5' : '#fff';
+    ctx.font = 'bold 8px "Space Grotesk", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(String(token), px + positions[i].dx, py + positions[i].dy);
+  });
+
+  // Show incoming token
+  if (numArrived < tokensArriving.length) {
+    const incomingToken = tokensArriving[numArrived];
+    const arrowX = px + CELL_SIZE + 30;
+    const arrowY = py + CELL_SIZE / 2;
+
+    ctx.strokeStyle = COLORS.displacement;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 2]);
+    ctx.beginPath();
+    ctx.moveTo(arrowX + 40, arrowY);
+    ctx.lineTo(arrowX, arrowY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Arrow head
+    ctx.fillStyle = COLORS.displacement;
+    ctx.beginPath();
+    ctx.moveTo(arrowX, arrowY);
+    ctx.lineTo(arrowX + 8, arrowY - 5);
+    ctx.lineTo(arrowX + 8, arrowY + 5);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = COLORS.token;
+    ctx.beginPath();
+    ctx.arc(arrowX + 55, arrowY, 10, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 10px "Space Grotesk", sans-serif';
+    ctx.fillText(String(incomingToken), arrowX + 55, arrowY + 3);
+  }
+
+  // Show eviction if K exceeded
+  if (evicted && phase > 0.8) {
+    ctx.fillStyle = '#ef4444';
+    ctx.font = '11px "Space Grotesk", sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(`Evicted: ${evicted} (least frequent)`, px - 10, py + CELL_SIZE + 20);
+  }
+
+  // Info box
+  drawInfoBox(baseWidth - 200, 50, 'Heavy-Hitters (K=4)', [
+    `Tokens arrived: ${numArrived}`,
+    `Cell capacity: ${K}`,
+    numArrived > K ? 'Eviction triggered!' : 'Storing...',
+    'Keeps top-K by frequency'
+  ]);
+
+  // Saturation meter
+  const saturation = Math.min(numArrived / K, 1);
+  const meterX = baseWidth - 200;
+  const meterY = 180;
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+  ctx.fillRect(meterX, meterY, 160, 40);
+  ctx.strokeStyle = COLORS.muted;
+  ctx.strokeRect(meterX, meterY, 160, 40);
+
+  ctx.fillStyle = COLORS.muted;
+  ctx.font = '10px "Space Grotesk", sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('Cell Saturation', meterX + 10, meterY + 15);
+
+  ctx.fillStyle = saturation >= 1 ? '#ef4444' : COLORS.locMatch;
+  ctx.fillRect(meterX + 10, meterY + 22, 140 * saturation, 10);
+
+  ctx.fillStyle = COLORS.text;
+  ctx.font = 'bold 9px "Space Grotesk", sans-serif';
+  ctx.textAlign = 'right';
+  ctx.fillText(`${Math.round(saturation * 100)}%`, meterX + 150, meterY + 31);
+
+  drawLabel(baseWidth / 2, baseHeight - 25, 'Each cell keeps only top-K tokens. Eviction prevents muddiness.', 'highlight');
+}
+
+function renderReplayScene(phase) {
+  drawGridBackground();
+  drawGrid([], null, false);
+
+  const path = PATHS[0];
+
+  // Show full path faded
+  ctx.strokeStyle = COLORS.path1 + '33';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  path.forEach((point, idx) => {
+    if (!isInView(point.x, point.y)) return;
+    const { x, y } = gridToPixel(point.x, point.y);
+    if (idx === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // Checkpoint marker
+  const checkpointStep = 5;
+  const checkpointPos = path[checkpointStep];
+  if (checkpointPos && isInView(checkpointPos.x, checkpointPos.y)) {
+    const { x, y } = gridToPixel(checkpointPos.x, checkpointPos.y);
+    ctx.strokeStyle = COLORS.vote;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(x, y, 18, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.fillStyle = COLORS.vote;
+    ctx.font = 'bold 9px "Space Grotesk", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Checkpoint', x, y - 28);
+    ctx.fillText(`Step ${checkpointStep}`, x, y + 32);
+  }
+
+  // Target query position
+  const targetStep = Math.min(checkpointStep + Math.floor(phase * 10) + 1, path.length - 1);
+  const targetPos = path[targetStep];
+
+  // Show replay progress
+  if (phase > 0.2) {
+    const replayProgress = Math.min((phase - 0.2) / 0.6, 1);
+    const replayEnd = checkpointStep + Math.floor(replayProgress * (targetStep - checkpointStep));
+
+    ctx.strokeStyle = COLORS.locMatch;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    for (let i = checkpointStep; i <= replayEnd && i < path.length; i++) {
+      const point = path[i];
+      if (!isInView(point.x, point.y)) continue;
+      const { x, y } = gridToPixel(point.x, point.y);
+      if (i === checkpointStep) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+
+    // Current replay position
+    const replayPos = path[replayEnd];
+    if (replayPos && isInView(replayPos.x, replayPos.y)) {
+      const { x, y } = gridToPixel(replayPos.x, replayPos.y);
+      ctx.fillStyle = COLORS.locMatch;
+      ctx.shadowColor = COLORS.locMatch;
+      ctx.shadowBlur = 12;
+      ctx.beginPath();
+      ctx.arc(x, y, 10, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+  }
+
+  // Target marker
+  if (targetPos && isInView(targetPos.x, targetPos.y)) {
+    const { x, y } = gridToPixel(targetPos.x, targetPos.y);
+    ctx.strokeStyle = COLORS.displacement;
+    ctx.setLineDash([4, 2]);
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(x, y, 15, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.fillStyle = COLORS.displacement;
+    ctx.font = '9px "Space Grotesk", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Query target', x, y - 22);
+    ctx.fillText(`Step ${targetStep}`, x, y + 28);
+  }
+
+  // Info box
+  drawInfoBox(baseWidth - 200, 50, 'Replay from Checkpoint', [
+    `Checkpoint: step ${checkpointStep}`,
+    `Target: step ${targetStep}`,
+    `Replay steps: ${targetStep - checkpointStep}`,
+    phase > 0.8 ? 'State reconstructed!' : 'Replaying events...'
+  ]);
+
+  drawLabel(baseWidth / 2, baseHeight - 25, 'State is reconstructed by replaying events from the nearest checkpoint.', 'highlight');
+}
+
+function renderSlowMapsScene(phase) {
+  drawGridBackground();
+
+  // Draw two grids side by side: fast map and slow map
+  const fastGridOffset = { x: 40, y: 80 };
+  const slowGridOffset = { x: 480, y: 80 };
+  const miniCellSize = 28;
+  const miniGridSize = 8;
+
+  // Labels
+  ctx.fillStyle = COLORS.text;
+  ctx.font = 'bold 14px "Space Grotesk", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('Fast Map (every step)', fastGridOffset.x + miniGridSize * miniCellSize / 2, fastGridOffset.y - 20);
+  ctx.fillText('Slow Map (every 5 steps)', slowGridOffset.x + miniGridSize * miniCellSize / 2, slowGridOffset.y - 20);
+
+  // Draw mini grids
+  function drawMiniGrid(offset, color, pathProgress) {
+    ctx.strokeStyle = COLORS.gridLine;
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= miniGridSize; i++) {
+      ctx.beginPath();
+      ctx.moveTo(offset.x + i * miniCellSize, offset.y);
+      ctx.lineTo(offset.x + i * miniCellSize, offset.y + miniGridSize * miniCellSize);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(offset.x, offset.y + i * miniCellSize);
+      ctx.lineTo(offset.x + miniGridSize * miniCellSize, offset.y + i * miniCellSize);
+      ctx.stroke();
+    }
+
+    // Draw path
+    const pathSteps = Math.floor(pathProgress * 15);
+    let x = 2, y = 2;
+    const visited = [];
+
+    ctx.strokeStyle = color + 'aa';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+
+    for (let i = 0; i < pathSteps; i++) {
+      const px = offset.x + (x + 0.5) * miniCellSize;
+      const py = offset.y + (y + 0.5) * miniCellSize;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+
+      visited.push({ x, y });
+
+      // Simple displacement
+      const dx = ((i * 7) % 3) - 1;
+      const dy = ((i * 11) % 3) - 1;
+      x = ((x + dx) % miniGridSize + miniGridSize) % miniGridSize;
+      y = ((y + dy) % miniGridSize + miniGridSize) % miniGridSize;
+    }
+    ctx.stroke();
+
+    // Current position
+    if (pathSteps > 0) {
+      const last = visited[visited.length - 1];
+      const px = offset.x + (last.x + 0.5) * miniCellSize;
+      const py = offset.y + (last.y + 0.5) * miniCellSize;
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(px, py, 6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    return pathSteps;
+  }
+
+  const fastSteps = drawMiniGrid(fastGridOffset, COLORS.path1, phase);
+
+  // Slow map only writes every 5 steps
+  const slowPhase = Math.floor(phase * 15 / 5) * 5 / 15;
+  drawMiniGrid(slowGridOffset, COLORS.path2, slowPhase);
+
+  // Window indicator on slow map
+  if (phase > 0.3) {
+    const windowNum = Math.floor(phase * 3);
+    ctx.fillStyle = COLORS.vote;
+    ctx.font = '10px "Space Grotesk", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(`Window ${windowNum + 1} summary`, slowGridOffset.x + miniGridSize * miniCellSize / 2, slowGridOffset.y + miniGridSize * miniCellSize + 20);
+  }
+
+  // Arrow between grids
+  const arrowY = fastGridOffset.y + miniGridSize * miniCellSize / 2;
+  ctx.strokeStyle = COLORS.muted;
+  ctx.lineWidth = 2;
+  ctx.setLineDash([6, 4]);
+  ctx.beginPath();
+  ctx.moveTo(fastGridOffset.x + miniGridSize * miniCellSize + 20, arrowY);
+  ctx.lineTo(slowGridOffset.x - 20, arrowY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Arrow head
+  ctx.fillStyle = COLORS.muted;
+  ctx.beginPath();
+  ctx.moveTo(slowGridOffset.x - 20, arrowY);
+  ctx.lineTo(slowGridOffset.x - 30, arrowY - 6);
+  ctx.lineTo(slowGridOffset.x - 30, arrowY + 6);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = COLORS.muted;
+  ctx.font = '9px "Space Grotesk", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('Summary', (fastGridOffset.x + miniGridSize * miniCellSize + slowGridOffset.x) / 2, arrowY - 10);
+  ctx.fillText('every N steps', (fastGridOffset.x + miniGridSize * miniCellSize + slowGridOffset.x) / 2, arrowY + 15);
+
+  // Info boxes
+  drawInfoBox(40, 360, 'Fast Map', [
+    `Steps written: ${fastSteps}`,
+    'Writes every step',
+    'Detailed trajectory'
+  ]);
+
+  drawInfoBox(480, 360, 'Slow Map', [
+    `Windows written: ${Math.floor(slowPhase * 3) + 1}`,
+    'Writes every 5 steps',
+    'Abstract summaries'
+  ]);
+
+  drawLabel(baseWidth / 2, baseHeight - 25, 'Fast maps for detail, slow maps for abstraction. Like cortical hierarchy.', 'highlight');
+}
+
+function renderReasoningScene(phase) {
+  drawGridBackground();
+
+  // Draw Work Signature visualization
+  const sigX = 100;
+  const sigY = 100;
+  const sigW = 300;
+  const sigH = 120;
+
+  // Fact signature box
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.95)';
+  ctx.beginPath();
+  ctx.roundRect(sigX, sigY, sigW, sigH, 8);
+  ctx.fill();
+  ctx.strokeStyle = COLORS.vote;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  ctx.fillStyle = COLORS.text;
+  ctx.font = 'bold 14px "Space Grotesk", sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('Fact (Work Signature)', sigX + 15, sigY + 25);
+
+  // Draw fact content
+  const fact = {
+    subject: 'Alice',
+    predicate: 'enters',
+    object: 'room_A'
+  };
+
+  ctx.font = '13px "Space Grotesk", monospace';
+  ctx.fillStyle = '#a5b4fc';
+  ctx.fillText('subject:', sigX + 20, sigY + 55);
+  ctx.fillStyle = COLORS.text;
+  ctx.fillText(`"${fact.subject}"`, sigX + 100, sigY + 55);
+
+  ctx.fillStyle = '#a5b4fc';
+  ctx.fillText('predicate:', sigX + 20, sigY + 75);
+  ctx.fillStyle = COLORS.text;
+  ctx.fillText(`"${fact.predicate}"`, sigX + 100, sigY + 75);
+
+  ctx.fillStyle = '#a5b4fc';
+  ctx.fillText('object:', sigX + 20, sigY + 95);
+  ctx.fillStyle = COLORS.text;
+  ctx.fillText(`"${fact.object}"`, sigX + 100, sigY + 95);
+
+  // Pattern with variable
+  const patX = 500;
+  const patY = 100;
+
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.95)';
+  ctx.beginPath();
+  ctx.roundRect(patX, patY, sigW, sigH, 8);
+  ctx.fill();
+  ctx.strokeStyle = COLORS.displacement;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  ctx.fillStyle = COLORS.text;
+  ctx.font = 'bold 14px "Space Grotesk", sans-serif';
+  ctx.fillText('Pattern (with variable)', patX + 15, patY + 25);
+
+  ctx.font = '13px "Space Grotesk", monospace';
+  ctx.fillStyle = '#a5b4fc';
+  ctx.fillText('subject:', patX + 20, patY + 55);
+  ctx.fillStyle = '#fbbf24'; // Variable color
+  ctx.fillText('?x', patX + 100, patY + 55);
+
+  ctx.fillStyle = '#a5b4fc';
+  ctx.fillText('predicate:', patX + 20, patY + 75);
+  ctx.fillStyle = COLORS.text;
+  ctx.fillText(`"enters"`, patX + 100, patY + 75);
+
+  ctx.fillStyle = '#a5b4fc';
+  ctx.fillText('object:', patX + 20, patY + 95);
+  ctx.fillStyle = COLORS.text;
+  ctx.fillText(`"room_A"`, patX + 100, patY + 95);
+
+  // Unification arrow
+  if (phase > 0.3) {
+    const arrowY = sigY + sigH + 50;
+    ctx.strokeStyle = COLORS.locMatch;
+    ctx.lineWidth = 3;
+    ctx.setLineDash([8, 4]);
+    ctx.beginPath();
+    ctx.moveTo(sigX + sigW / 2, sigY + sigH + 10);
+    ctx.quadraticCurveTo(baseWidth / 2, arrowY + 30, patX + sigW / 2, patY + sigH + 10);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.fillStyle = COLORS.locMatch;
+    ctx.font = 'bold 12px "Space Grotesk", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Unification', baseWidth / 2, arrowY + 20);
+  }
+
+  // Bindings result
+  if (phase > 0.5) {
+    const bindX = baseWidth / 2 - 100;
+    const bindY = 320;
+
+    ctx.fillStyle = 'rgba(34, 197, 94, 0.15)';
+    ctx.beginPath();
+    ctx.roundRect(bindX, bindY, 200, 60, 8);
+    ctx.fill();
+    ctx.strokeStyle = COLORS.locMatch;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.fillStyle = COLORS.locMatch;
+    ctx.font = 'bold 13px "Space Grotesk", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Bindings', bindX + 100, bindY + 22);
+
+    ctx.font = '14px "Space Grotesk", monospace';
+    ctx.fillStyle = '#fbbf24';
+    ctx.fillText('?x', bindX + 40, bindY + 45);
+    ctx.fillStyle = COLORS.text;
+    ctx.fillText('→', bindX + 70, bindY + 45);
+    ctx.fillStyle = COLORS.text;
+    ctx.fillText('"Alice"', bindX + 130, bindY + 45);
+  }
+
+  // Derivation chain
+  if (phase > 0.7) {
+    const chainX = 150;
+    const chainY = 420;
+
+    ctx.fillStyle = COLORS.muted;
+    ctx.font = '11px "Space Grotesk", sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('Derivation Chain:', chainX, chainY);
+
+    const steps = [
+      { label: 'Premise', text: 'Alice enters room_A' },
+      { label: 'Rule', text: 'IF enters(X, Y) THEN location(X) = Y' },
+      { label: 'Derived', text: 'location(Alice) = room_A' }
+    ];
+
+    steps.forEach((step, i) => {
+      const stepY = chainY + 25 + i * 25;
+      const alpha = Math.min(1, (phase - 0.7) / 0.1 * (i + 1));
+
+      ctx.fillStyle = `rgba(139, 92, 246, ${alpha})`;
+      ctx.fillText(`${i + 1}. [${step.label}]`, chainX, stepY);
+
+      ctx.fillStyle = `rgba(226, 232, 240, ${alpha})`;
+      ctx.fillText(step.text, chainX + 120, stepY);
+    });
+  }
+
+  drawInfoBox(baseWidth - 200, 50, 'Reasoning Primitives', [
+    'Facts = structured bindings',
+    'Patterns = templates with ?vars',
+    'Unification = matching + binding',
+    phase > 0.7 ? 'Chains = auditable derivations' : 'Building chain...'
+  ]);
+
+  drawLabel(baseWidth / 2, baseHeight - 25, 'Reasoning is explicit: facts, patterns, bindings, derivation chains.', 'highlight');
+}
+
+// ==================== MAIN RENDER LOOP ====================
+
+function render() {
+  const { scene, index, local } = getSceneAtTime(timeline);
+  const phase = local / scene.duration;
+
+  switch (scene.id) {
+    case 'grid':
+      renderGridScene(phase);
+      break;
+    case 'displacement':
+      renderDisplacementScene(phase);
+      break;
+    case 'path':
+      renderPathScene(phase);
+      break;
+    case 'multicolumn':
+      renderMultiColumnScene(phase);
+      break;
+    case 'localization':
+      renderLocalizationScene(phase);
+      break;
+    case 'voting':
+      renderVotingScene(phase);
+      break;
+    case 'branching':
+      renderBranchingScene(phase);
+      break;
+    case 'prediction':
+      renderPredictionScene(phase);
+      break;
+    case 'heavyhitters':
+      renderHeavyHittersScene(phase);
+      break;
+    case 'replay':
+      renderReplayScene(phase);
+      break;
+    case 'slowmaps':
+      renderSlowMapsScene(phase);
+      break;
+    case 'reasoning':
+      renderReasoningScene(phase);
+      break;
+  }
+
+  updateSidePanel(scene, index);
+  updateStepChips(index);
+}
+
+function getSceneAtTime(t) {
+  let acc = 0;
+  for (let i = 0; i < SCENES.length; i++) {
+    acc += SCENES[i].duration;
+    if (t < acc) return { scene: SCENES[i], index: i, local: t - (acc - SCENES[i].duration) };
+  }
+  return { scene: SCENES[SCENES.length - 1], index: SCENES.length - 1, local: SCENES[SCENES.length - 1].duration };
+}
+
+function sceneStart(index) {
+  let t = 0;
+  for (let i = 0; i < index; i++) t += SCENES[i].duration;
+  return t;
 }
 
 function sliderToSpeed(value) {
@@ -179,213 +1577,12 @@ function buildStepsUI() {
     const chip = document.createElement('button');
     chip.type = 'button';
     chip.className = 'tutorial-step';
-    chip.textContent = `${idx + 1}. ${scene.title}`;
+    chip.textContent = `${idx + 1}. ${scene.title.split(' - ')[0]}`;
     chip.addEventListener('click', () => {
       timeline = sceneStart(idx);
       render();
     });
     stepsContainer.appendChild(chip);
-  });
-}
-
-function sceneStart(index) {
-  let t = 0;
-  for (let i = 0; i < index; i += 1) t += SCENES[i].duration;
-  return t;
-}
-
-function getSceneAtTime(t) {
-  let acc = 0;
-  for (let i = 0; i < SCENES.length; i += 1) {
-    acc += SCENES[i].duration;
-    if (t < acc) return { scene: SCENES[i], index: i, local: t - (acc - SCENES[i].duration) };
-  }
-  return { scene: SCENES[SCENES.length - 1], index: SCENES.length - 1, local: 0 };
-}
-
-function render() {
-  ctx.clearRect(0, 0, baseWidth, baseHeight);
-  drawGrid();
-
-  const { scene, index, local } = getSceneAtTime(timeline);
-  const stepIndex = Math.floor((local / scene.duration) * STEPS_PER_SCENE);
-  const globalStep = index * STEPS_PER_SCENE + stepIndex;
-
-  const activeColumns = index >= 4 ? 4 : 3;
-  drawTrails(globalStep, scene, activeColumns);
-  drawColumns(globalStep, scene, activeColumns);
-  drawSceneOverlays(globalStep, scene, local / scene.duration);
-
-  updateSidePanel(scene, index);
-  updateStepChips(index);
-}
-
-function drawGrid() {
-  ctx.strokeStyle = COLORS.grid;
-  ctx.lineWidth = 1;
-  for (let c = 0; c <= GRID.cols; c += 1) {
-    const x = c * CELL.w;
-    ctx.beginPath();
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, baseHeight);
-    ctx.stroke();
-  }
-  for (let r = 0; r <= GRID.rows; r += 1) {
-    const y = r * CELL.h;
-    ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.lineTo(baseWidth, y);
-    ctx.stroke();
-  }
-}
-
-function drawTrails(step, scene, count) {
-  const tail = scene.id === 'replay' ? 14 : 8;
-  for (let i = 0; i < count; i += 1) {
-    const path = stepPaths[i].points;
-    const start = Math.max(0, step - tail);
-    ctx.beginPath();
-    for (let s = start; s <= step; s += 1) {
-      const p = path[s % path.length];
-      const px = p.x * CELL.w + CELL.w / 2;
-      const py = p.y * CELL.h + CELL.h / 2;
-      if (s === start) ctx.moveTo(px, py);
-      else ctx.lineTo(px, py);
-    }
-    ctx.strokeStyle = stepPaths[i].color + '55';
-    ctx.lineWidth = 3;
-    ctx.stroke();
-  }
-}
-
-function drawColumns(step, scene, count) {
-  for (let i = 0; i < count; i += 1) {
-    const p = stepPaths[i].points[step % stepPaths[i].points.length];
-    const px = p.x * CELL.w + CELL.w / 2;
-    const py = p.y * CELL.h + CELL.h / 2;
-    ctx.beginPath();
-    ctx.fillStyle = stepPaths[i].color;
-    ctx.arc(px, py, 9, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  if (scene.id === 'growth') {
-    const stepIndex = step % stepPaths[3].points.length;
-    const p = stepPaths[3].points[stepIndex];
-    const alpha = Math.min(1, stepIndex / STEPS_PER_SCENE);
-    ctx.beginPath();
-    ctx.fillStyle = `rgba(247,143,240,${alpha})`;
-    ctx.arc(p.x * CELL.w + CELL.w / 2, p.y * CELL.h + CELL.h / 2, 8, 0, Math.PI * 2);
-    ctx.fill();
-  }
-}
-
-function drawSceneOverlays(step, scene, phase) {
-  const center = { x: baseWidth * 0.5, y: baseHeight * 0.5 };
-  const pulse = 0.5 + Math.sin(phase * Math.PI * 2) * 0.5;
-
-  if (scene.id === 'reference') {
-    drawPulse(center.x, center.y, COLORS.event, 16 + pulse * 6);
-    drawLabel(center.x, center.y - 20, 'sensory event');
-    drawReferenceAxes();
-  }
-
-  if (scene.id === 'learning') {
-    const p = stepPaths[0].points[step % stepPaths[0].points.length];
-    drawPulse(p.x * CELL.w + CELL.w / 2, p.y * CELL.h + CELL.h / 2, COLORS.event, 14 + pulse * 6);
-    drawLabel(p.x * CELL.w + CELL.w / 2 + 16, p.y * CELL.h + CELL.h / 2 - 12, 'write');
-  }
-
-  if (scene.id === 'movement') {
-    const a = stepPaths[1].points[step % stepPaths[1].points.length];
-    const b = stepPaths[1].points[(step + 1) % stepPaths[1].points.length];
-    ctx.strokeStyle = COLORS.event;
-    ctx.lineWidth = 2.5;
-    ctx.beginPath();
-    ctx.moveTo(a.x * CELL.w + CELL.w / 2, a.y * CELL.h + CELL.h / 2);
-    ctx.lineTo(b.x * CELL.w + CELL.w / 2, b.y * CELL.h + CELL.h / 2);
-    ctx.stroke();
-    drawLabel(b.x * CELL.w + CELL.w / 2 + 12, b.y * CELL.h + CELL.h / 2 - 10, 'displacement');
-  }
-
-  if (scene.id === 'consensus') {
-    const candidates = stepPaths.slice(0, 3).map((path) => path.points[step % path.points.length]);
-    const avg = candidates.reduce((acc, p) => ({ x: acc.x + p.x, y: acc.y + p.y }), { x: 0, y: 0 });
-    avg.x /= candidates.length;
-    avg.y /= candidates.length;
-    candidates.forEach((p) => {
-      drawPulse(p.x * CELL.w + CELL.w / 2, p.y * CELL.h + CELL.h / 2, 'rgba(123,141,255,0.6)', 10);
-    });
-    drawPulse(avg.x * CELL.w + CELL.w / 2, avg.y * CELL.h + CELL.h / 2, '#ffffff', 18 + pulse * 6);
-    drawLabel(avg.x * CELL.w + CELL.w / 2 + 14, avg.y * CELL.h + CELL.h / 2 - 10, 'consensus');
-  }
-
-  if (scene.id === 'growth') {
-    drawPulse(center.x * 0.75, center.y * 0.4, COLORS.event, 20 + pulse * 8);
-    drawLabel(center.x * 0.75 + 20, center.y * 0.4 - 10, 'novelty spike');
-  }
-
-  if (scene.id === 'semantic') {
-    drawFrameBadges(center.x, center.y, phase);
-  }
-
-  if (scene.id === 'replay') {
-    ctx.strokeStyle = 'rgba(82,242,194,0.8)';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(baseWidth * 0.8, baseHeight * 0.2);
-    ctx.lineTo(baseWidth * 0.2, baseHeight * 0.7);
-    ctx.stroke();
-    drawLabel(baseWidth * 0.2 + 14, baseHeight * 0.7 - 10, 'replay path');
-  }
-}
-
-function drawPulse(x, y, color, radius) {
-  ctx.beginPath();
-  ctx.fillStyle = color;
-  ctx.shadowBlur = 18;
-  ctx.shadowColor = color;
-  ctx.arc(x, y, radius, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.shadowBlur = 0;
-}
-
-function drawLabel(x, y, text) {
-  ctx.fillStyle = COLORS.text;
-  ctx.font = '12px "Space Grotesk", sans-serif';
-  ctx.fillText(text, x, y);
-}
-
-function drawReferenceAxes() {
-  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-  ctx.lineWidth = 1;
-  ctx.setLineDash([6, 6]);
-  ctx.beginPath();
-  ctx.moveTo(baseWidth * 0.15, baseHeight * 0.15);
-  ctx.lineTo(baseWidth * 0.15, baseHeight * 0.85);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(baseWidth * 0.15, baseHeight * 0.15);
-  ctx.lineTo(baseWidth * 0.45, baseHeight * 0.15);
-  ctx.stroke();
-  ctx.setLineDash([]);
-}
-
-function drawFrameBadges(x, y, phase) {
-  const frames = [
-    { label: 'emotion', color: '#fca5a5' },
-    { label: 'theme', color: '#a7f3d0' },
-    { label: 'conflict', color: '#fcd34d' }
-  ];
-  frames.forEach((frame, idx) => {
-    const angle = phase * Math.PI * 2 + idx * 2.1;
-    const rx = x + Math.cos(angle) * 120;
-    const ry = y + Math.sin(angle) * 80;
-    ctx.beginPath();
-    ctx.fillStyle = frame.color;
-    ctx.arc(rx, ry, 10, 0, Math.PI * 2);
-    ctx.fill();
-    drawLabel(rx + 12, ry + 4, frame.label);
   });
 }
 
@@ -425,6 +1622,7 @@ function tick(now) {
   requestAnimationFrame(tick);
 }
 
+// Event listeners
 playBtn.addEventListener('click', () => {
   playing = true;
 });
@@ -444,7 +1642,96 @@ speedInput.addEventListener('input', (event) => {
   updateSpeedLabels();
 });
 
+// Lesson navigation
+const lessonNav = document.getElementById('lessonNav');
+if (lessonNav) {
+  lessonNav.addEventListener('click', (event) => {
+    const btn = event.target.closest('.lesson-nav-item');
+    if (!btn) return;
+
+    const lessonIdx = parseInt(btn.dataset.lesson, 10);
+    if (!isNaN(lessonIdx) && lessonIdx >= 0 && lessonIdx < SCENES.length) {
+      timeline = sceneStart(lessonIdx);
+      playing = false; // Pause when manually selecting
+      render();
+    }
+  });
+}
+
+function updateLessonNav(activeIndex) {
+  if (!lessonNav) return;
+
+  Array.from(lessonNav.children).forEach((btn, idx) => {
+    btn.classList.toggle('active', idx === activeIndex);
+    // Mark completed lessons
+    if (idx < activeIndex) {
+      btn.classList.add('completed');
+    } else {
+      btn.classList.remove('completed');
+    }
+  });
+}
+
+// Override updateStepChips to also update lesson nav
+const originalUpdateStepChips = updateStepChips;
+function updateStepChipsAndNav(activeIndex) {
+  originalUpdateStepChips(activeIndex);
+  updateLessonNav(activeIndex);
+}
+
+// Patch the render function to use new update
+const originalRender = render;
+render = function () {
+  const { scene, index, local } = getSceneAtTime(timeline);
+  const phase = local / scene.duration;
+
+  switch (scene.id) {
+    case 'grid':
+      renderGridScene(phase);
+      break;
+    case 'displacement':
+      renderDisplacementScene(phase);
+      break;
+    case 'path':
+      renderPathScene(phase);
+      break;
+    case 'multicolumn':
+      renderMultiColumnScene(phase);
+      break;
+    case 'localization':
+      renderLocalizationScene(phase);
+      break;
+    case 'voting':
+      renderVotingScene(phase);
+      break;
+    case 'branching':
+      renderBranchingScene(phase);
+      break;
+    case 'prediction':
+      renderPredictionScene(phase);
+      break;
+    case 'heavyhitters':
+      renderHeavyHittersScene(phase);
+      break;
+    case 'replay':
+      renderReplayScene(phase);
+      break;
+    case 'slowmaps':
+      renderSlowMapsScene(phase);
+      break;
+    case 'reasoning':
+      renderReasoningScene(phase);
+      break;
+  }
+
+  updateSidePanel(scene, index);
+  updateStepChips(index);
+  updateLessonNav(index);
+};
+
+// Initialize
 buildStepsUI();
 updateSpeedLabels();
+updateLessonNav(0);
 render();
 requestAnimationFrame(tick);

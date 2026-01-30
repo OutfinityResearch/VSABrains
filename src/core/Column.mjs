@@ -122,6 +122,114 @@ export class Column {
     };
   }
 
+  /**
+   * Predict the next likely token(s) based on current location.
+   * 
+   * DS004 §10 / Thousand Brains: Each column independently predicts
+   * based on its reference frame. Predictions are aggregated via Voter.
+   * 
+   * @param {object} context - Context for prediction
+   * @param {number[]} context.recentTokens - Recent step tokens (context window)
+   * @param {number} [context.topK=3] - Number of predictions to return
+   * @returns {Promise<object>} Prediction with value, score, and alternatives
+   */
+  async predict(context = {}) {
+    const { recentTokens = [], topK = 3 } = context;
+
+    // The current location after processing recentTokens
+    const { x, y } = this.location;
+
+    // Read top-K tokens at current location from the primary fast map
+    const map = this.fastMaps[this.indexMapId] ?? this.fastMaps[0];
+    if (!map) {
+      return { value: null, score: 0, alternatives: [] };
+    }
+
+    const topTokens = map.readTopK(x, y, topK);
+    if (!topTokens || topTokens.length === 0) {
+      return { value: null, score: 0, alternatives: [] };
+    }
+
+    // Primary prediction is the most frequent token at this location
+    const [primaryTokenId, primaryCount] = topTokens[0];
+    const totalCount = topTokens.reduce((acc, [, count]) => acc + count, 0);
+    const score = totalCount > 0 ? primaryCount / totalCount : 0;
+
+    // Alternatives for multi-hypothesis tracking
+    const alternatives = topTokens.slice(1).map(([tokenId, count]) => ({
+      tokenId,
+      score: totalCount > 0 ? count / totalCount : 0
+    }));
+
+    return {
+      value: primaryTokenId,
+      tokenId: primaryTokenId,
+      score,
+      location: { x, y },
+      alternatives
+    };
+  }
+
+  /**
+   * Simulate trajectory from a starting location given a token sequence.
+   * Used for replay-based verification (DS004 §6.3).
+   * 
+   * @param {object} startLocation - Starting {x, y} position
+   * @param {number[]} tokens - Token sequence to replay
+   * @returns {Array<{location: object, token: number}>} Trajectory
+   */
+  simulateTrajectory(startLocation, tokens) {
+    const trajectory = [];
+    let current = { ...startLocation };
+    const tempEncoder = new DisplacementEncoder({
+      ...this.displacementEncoder,
+      contextLength: this.displacementEncoder.contextLength,
+      maxStep: this.displacementEncoder.maxStep,
+      seed: this.displacementEncoder.seed,
+      width: this.mapConfig.width,
+      height: this.mapConfig.height
+    });
+    tempEncoder.reset();
+
+    for (const token of tokens) {
+      // Record position before move
+      trajectory.push({ location: { ...current }, token });
+
+      // Compute displacement and move
+      const displacement = tempEncoder.step(token);
+      current = tempEncoder.apply(current, displacement, this.mapConfig);
+    }
+
+    return trajectory;
+  }
+
+  /**
+   * Verify that a trajectory matches stored grid content.
+   * Returns a score in [0, 1] representing match quality.
+   * 
+   * @param {Array<{location: object, token: number}>} trajectory
+   * @returns {number} Verification score
+   */
+  verifyTrajectory(trajectory) {
+    if (!trajectory || trajectory.length === 0) return 0;
+
+    const map = this.fastMaps[this.indexMapId] ?? this.fastMaps[0];
+    if (!map) return 0;
+
+    let matches = 0;
+    for (const { location, token } of trajectory) {
+      const { x, y } = location;
+      const stored = map.readTopK(x, y, this.mapConfig.k || 4);
+      const storedTokenIds = stored.map(([id]) => id);
+
+      if (storedTokenIds.includes(token)) {
+        matches++;
+      }
+    }
+
+    return matches / trajectory.length;
+  }
+
   reset() {
     this.location = { ...this.initialLocation };
     this.fastMapLocations = this.fastMaps.map(() => ({ ...this.initialLocation }));

@@ -1,0 +1,9 @@
+{
+  "id": "derivation",
+  "title": "Fact Derivation - Building Knowledge",
+  "narrations": {
+    "en": "Knowledge grows through derivation. Given facts 'Socrates is a man' and 'All men are mortal', we derive 'Socrates is mortal'. Each derivation is explicit: the rule applied, the premises matched, the bindings used. The derived fact stores its complete lineage. When you ask 'Why is Socrates mortal?', the system shows the reasoning chain. This is not a black box. Every conclusion traces back through logical steps to source facts. The knowledge graph expands with full auditability.",
+    "pt": "Conhecimento cresce através de derivação. Dados os fatos 'Sócrates é um homem' e 'Todos os homens são mortais', derivamos 'Sócrates é mortal'. Cada derivação é explícita: a regra aplicada, as premissas correspondidas, as ligações usadas. O fato derivado armazena sua linhagem completa. Quando você pergunta 'Por que Sócrates é mortal?', o sistema mostra a cadeia de raciocínio. Isso não é uma caixa preta. Cada conclusão rastreia através de passos lógicos até os fatos de origem. O grafo de conhecimento expande com auditabilidade completa.",
+    "ro": "Cunoștințele cresc prin derivare. Date faptele 'Socrate este om' și 'Toți oamenii sunt muritori', derivăm 'Socrate este muritor'. Fiecare derivare este explicită: regula aplicată, premisele potrivite, legăturile folosite. Faptul derivat stochează întreaga sa linie. Când întrebi 'De ce este Socrate muritor?', sistemul arată lanțul de raționament. Aceasta nu este o cutie neagră. Fiecare concluzie se trasează înapoi prin pași logici până la faptele sursă. Graful de cunoștințe se extinde cu auditabilitate completă."
+  }
+}
