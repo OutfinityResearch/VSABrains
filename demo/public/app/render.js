@@ -4,9 +4,10 @@
  */
 
 export {
-  drawGrid,
-  drawSaturationHeatmap
+  drawGrid
 } from './render/grid.js';
+
+export { drawSaturationHeatmap } from './render/heatmap.js';
 
 export {
   ensureVisibleColumns,
@@ -43,4 +44,3 @@ export {
   setLocalizationCandidates,
   setTheoryVizEnabled
 } from './render/theory.js';
-
