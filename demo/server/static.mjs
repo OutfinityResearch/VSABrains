@@ -14,7 +14,9 @@ export async function handleStatic(req, res, url, publicDir) {
   try {
     const stat = await fs.stat(resolvedPath);
     if (stat.isDirectory()) {
-      return handleStatic(req, res, new URL('/index.html', url), publicDir);
+      // Serve index.html within the requested directory (e.g. /tutorial -> /tutorial/index.html).
+      const dirPath = url.pathname.endsWith('/') ? url.pathname : `${url.pathname}/`;
+      return handleStatic(req, res, new URL(`${dirPath}index.html`, url), publicDir);
     }
     const data = await fs.readFile(resolvedPath);
     const ext = path.extname(resolvedPath).toLowerCase();
