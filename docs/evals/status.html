@@ -83,6 +83,9 @@
           <p class="note">
             Evaluation configuration notes: Exp2 time localization is measured via replay-based window verification against fast maps (not through a separate learned time model). Exp3 uses a deterministic extractor stub (no external LLM), so extractor stability and latency under real LLMs are not yet validated.
           </p>
+          <p class="note">
+            Exp6 uses a simulated semantic encoder to stress the frame/query pipeline for literature and dialogue.
+          </p>
         </div>
 
         <div class="section">
@@ -96,6 +99,7 @@
             <button class="eval-button" data-doc="exp3.html" role="tab" aria-selected="false">Exp 3: Grounded RAG</button>
             <button class="eval-button" data-doc="exp4.html" role="tab" aria-selected="false">Exp 4: Consensus vs List</button>
             <button class="eval-button" data-doc="exp5.html" role="tab" aria-selected="true">Exp 5: Performance</button>
+            <button class="eval-button" data-doc="exp6.html" role="tab" aria-selected="false">Exp 6: Literature</button>
             <button class="eval-button" data-doc="optimizations.html" role="tab" aria-selected="false">Optimizations</button>
           </div>
         </div>
@@ -125,14 +129,19 @@
                 <td>Measured via replay verification, not a learned or independent time model.</td>
                 <td>Success reflects deterministic verification, not predictive time inference.</td>
               </tr>
-              <tr>
-                <td>Compression Sweep</td>
-                <td>Compression sweep now covers grid size and heavy-hitters <code>k</code>, but only on Exp4 proxies.</td>
-                <td>Compression effects on Exp1/Exp2 and real memory usage remain unvalidated.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+          <tr>
+            <td>Compression Sweep</td>
+            <td>Compression sweep now covers grid size and heavy-hitters <code>k</code>, but only on Exp4 proxies.</td>
+            <td>Compression effects on Exp1/Exp2 and real memory usage remain unvalidated.</td>
+          </tr>
+          <tr>
+            <td>Exp6 Encoder</td>
+            <td>Semantic encoder is simulated; not a production‑grade model.</td>
+            <td>Frame quality reflects the generator, not a live LLM pipeline.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
       </main>
 
       <script>

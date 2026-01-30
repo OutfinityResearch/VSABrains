@@ -1074,3 +1074,179 @@ body.is-busy * {
     grid-template-columns: 1fr;
   }
 }
+
+.tutorial-link {
+  margin-left: 16px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(123,141,255,0.4);
+  color: var(--text);
+  text-decoration: none;
+  font-size: 12px;
+  background: rgba(14, 18, 30, 0.7);
+}
+
+.tutorial-link:hover {
+  border-color: rgba(123,141,255,0.8);
+  box-shadow: 0 0 12px rgba(123,141,255,0.4);
+}
+
+.tutorial-body .topbar {
+  margin-bottom: 24px;
+}
+
+.tutorial-app .tutorial-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  gap: 18px;
+}
+
+.tutorial-panel {
+  padding: 18px;
+}
+
+.tutorial-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.tutorial-kicker {
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.tutorial-title {
+  margin: 8px 0 6px;
+  font-size: 28px;
+  font-family: "Fraunces", serif;
+}
+
+.tutorial-legend {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 6px;
+}
+
+.legend-dot.col-a { background: #7b8dff; }
+.legend-dot.col-b { background: #52f2c2; }
+.legend-dot.col-c { background: #ffd166; }
+.legend-dot.col-d { background: #f78ff0; }
+.legend-dot.event-dot { background: #f97316; }
+
+.tutorial-canvas-wrap {
+  margin-top: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(123,141,255,0.2);
+  overflow: hidden;
+  background: rgba(8, 12, 24, 0.8);
+}
+
+.tutorial-canvas-wrap canvas {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.tutorial-controls {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 14px;
+  align-items: center;
+}
+
+.tutorial-speed {
+  min-width: 260px;
+}
+
+.tutorial-step-row {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.tutorial-step {
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(10, 14, 26, 0.7);
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.tutorial-step.active {
+  border-color: rgba(123,141,255,0.8);
+  color: var(--text);
+  background: rgba(123,141,255,0.2);
+}
+
+.tutorial-side .tutorial-card + .tutorial-card {
+  margin-top: 16px;
+}
+
+.tutorial-card {
+  padding: 16px;
+  border-radius: 16px;
+  background: rgba(12, 16, 30, 0.8);
+  border: 1px solid rgba(123,141,255,0.2);
+}
+
+.tutorial-card-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
+
+.tutorial-card h2 {
+  margin: 8px 0 10px;
+}
+
+.tutorial-card ul {
+  margin: 8px 0 0 16px;
+  color: var(--muted);
+}
+
+.tutorial-signals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.tutorial-signal {
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(123,141,255,0.25);
+  background: rgba(12, 16, 30, 0.8);
+  font-size: 12px;
+  color: var(--text);
+}
+
+@media (max-width: 1100px) {
+  .tutorial-app .tutorial-layout {
+    grid-template-columns: 1fr;
+  }
+  .tutorial-controls {
+    grid-template-columns: 1fr;
+  }
+}

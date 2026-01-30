@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Demo Guide</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/site.css">
+  </head>
+  <body>
+    <div class="site">
+      <header class="header">
+        <a class="brand" href="index.html" aria-label="VSABrains home">
+          <img src="assets/svgs/brand-icon.svg" alt="" width="28" height="28">
+          <span>VSABrains</span>
+        </a>
+      </header>
+
+      <main class="main content">
+        <div class="hero">
+          <h1 class="hero-title">Demo Guide</h1>
+          <p class="hero-subtitle">
+            A simple, step‑by‑step way to use the demo and understand the visuals.
+          </p>
+        </div>
+
+        <div class="section">
+          <h2>What the demo shows</h2>
+          <ul>
+            <li>How columns write events as trajectories on a grid.</li>
+            <li>How queries trigger replay and verification.</li>
+            <li>How semantic frames highlight higher‑level patterns (emotion, theme, conflict).</li>
+          </ul>
+        </div>
+
+        <div class="section">
+          <h2>Typical workflow (3 minutes)</h2>
+          <ol>
+            <li><strong>Generate a story.</strong> Choose a story mode (clean vs contradictory).</li>
+            <li><strong>Add more events.</strong> Use the “add events” button to grow the history.</li>
+            <li><strong>Run queries.</strong> Try at least 10 query types to see different answer paths.</li>
+            <li><strong>Watch the animation.</strong> Use Play/Stop and the speed slider to follow the path.</li>
+          </ol>
+        </div>
+
+        <div class="section">
+          <h2>How to read the grid</h2>
+          <ul>
+            <li><strong>Dots/segments</strong> = where recent events were written.</li>
+            <li><strong>Multiple colors</strong> = different columns and/or frame highlights.</li>
+            <li><strong>Longer trails</strong> = longer history or denser activity.</li>
+          </ul>
+          <p class="note">
+            Think of each column as a “witness.” The grid is their shared notebook.
+          </p>
+        </div>
+
+        <div class="section">
+          <h2>Query tab (right panel)</h2>
+          <p>
+            The Query tab lets you ask direct questions such as:
+            “Where is Alice?”, “Who has the key?”, or “Did a contradiction happen?”
+          </p>
+          <ul>
+            <li><strong>Supported</strong> = the answer is backed by a replayed evidence chain.</li>
+            <li><strong>Conflicting</strong> = the system found explicit contradictions.</li>
+            <li><strong>Unsupported</strong> = no evidence found in the story.</li>
+          </ul>
+        </div>
+
+        <div class="section">
+          <h2>CNL tab</h2>
+          <p>
+            CNL (Constrained Natural Language) is a small list of semantic frames used by the demo.
+            It controls what “semantic lenses” are tracked (tone, theme, conflict, emotion, etc.).
+          </p>
+          <p class="note">
+            Changing the CNL profile changes what the system can summarize quickly.
+          </p>
+        </div>
+
+        <div class="section">
+          <h2>Frames tab</h2>
+          <p>
+            The Frames tab plays a “film” of where specific semantic frames occurred.
+            It follows the <em>story order</em> and highlights the segments where a frame fired.
+          </p>
+          <ul>
+            <li><strong>Legend</strong> = the most active frames and their weights.</li>
+            <li><strong>Animation</strong> = where those frames happened in the grid.</li>
+          </ul>
+        </div>
+
+        <div class="section">
+          <h2>Tips for clearer results</h2>
+          <ul>
+            <li>Use a slower animation speed when you want to see sequence order.</li>
+            <li>Increase columns to watch consensus smooth out noisy data.</li>
+            <li>Use contradictory stories to see verifier rules in action.</li>
+          </ul>
+        </div>
+      </main>
+
+      <footer class="footer">
+        <a href="index.html">Home</a>
+        <span class="muted">•</span>
+        <a href="how-it-works.html">How it Works</a>
+        <span class="muted">•</span>
+        <a href="frames.html">Frames</a>
+        <span class="muted">•</span>
+        <a href="glossary.html">Glossary</a>
+      </footer>
+    </div>
+  </body>
+</html>

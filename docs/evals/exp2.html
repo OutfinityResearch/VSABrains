@@ -1,9 +1,32 @@
 <div class="section">
   <h2>Experiment 2: Narrative Coherence</h2>
   <p>
-    Goal: track state over long stories without collapse. This includes coreference resolution,
-    repetitive motifs, and the ability to localize earlier parts of a narrative through replay.
+    Goal: show that the system can track characters, objects, and locations over long stories
+    without “forgetting” earlier facts. This includes coreference (pronouns), repeated motifs,
+    and time localization by replay.
   </p>
+  <p class="note">
+    Plain-language version: we want the system to keep a consistent story memory even when
+    the narrative is long and messy.
+  </p>
+
+  <h3>How this experiment works</h3>
+  <ul>
+    <li>Generate a long synthetic story with entities, locations, and repeated motifs.</li>
+    <li>Insert pronouns (coreference) that must resolve to the correct entity.</li>
+    <li>Ask state questions (e.g., “Where is Alice?” or “Who has the key?”).</li>
+    <li>Verify contradictions (e.g., dead actors acting).</li>
+  </ul>
+
+  <h3>How to read the metrics</h3>
+  <ul>
+    <li><strong>State Accuracy</strong> = correct final state after replay.</li>
+    <li><strong>Motif Handling</strong> = still recognizes repeated events in long context.</li>
+    <li><strong>Coref Resolution</strong> = resolves pronouns to the right entity.</li>
+    <li><strong>Time Localization</strong> = can find where a past event occurred.</li>
+    <li><strong>Conflict Detection</strong> = detects explicit contradictions.</li>
+  </ul>
+
   <table class="table">
     <thead>
       <tr>
@@ -25,5 +48,10 @@
     Time localization here is replay-based verification against the fast maps (not a separate learned
     time model).
   </p>
+  <p>
+    Interpretation: passing means the system can preserve long‑range narrative state
+    and resolve pronouns reliably under this synthetic setup. It does <em>not</em>
+    prove open‑domain story understanding; it proves that the discrete memory pipeline
+    is stable over time.
+  </p>
 </div>
-

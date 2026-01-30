@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Glossary (Plain Language)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/site.css">
+  </head>
+  <body>
+    <div class="site">
+      <header class="header">
+        <a class="brand" href="index.html" aria-label="VSABrains home">
+          <img src="assets/svgs/brand-icon.svg" alt="" width="28" height="28">
+          <span>VSABrains</span>
+        </a>
+      </header>
+
+      <main class="main content">
+        <div class="hero">
+          <h1 class="hero-title">Glossary (Plain Language)</h1>
+          <p class="hero-subtitle">
+            Simple, high‑school level explanations for the core VSABrains terms.
+          </p>
+        </div>
+
+        <div class="section">
+          <h2>Core building blocks</h2>
+          <ul>
+            <li><strong>Column</strong> — a small, independent “witness” that walks a grid and writes notes.</li>
+            <li><strong>Grid map</strong> — a 2D notebook. Each cell stores a tiny summary of recent tokens.</li>
+            <li><strong>Cell</strong> — one square in the grid. It keeps the top‑K token IDs that visit it.</li>
+            <li><strong>Trajectory</strong> — the path a column takes over time across the grid.</li>
+          </ul>
+        </div>
+
+        <div class="section">
+          <h2>Tokens and steps</h2>
+          <ul>
+            <li><strong>Token</strong> — a stable ID for a piece of information (e.g., “Alice”, “room_A”).</li>
+            <li><strong>Step token</strong> — a combined token representing the whole event at a step.</li>
+            <li><strong>Window</strong> — the last <em>N</em> step tokens, used for fast localization.</li>
+          </ul>
+        </div>
+
+        <div class="section">
+          <h2>Movement and indexing</h2>
+          <ul>
+            <li><strong>Displacement</strong> — a small, deterministic move computed from recent tokens.</li>
+            <li><strong>Location index</strong> — a token→location lookup table for fast search.</li>
+            <li><strong>Localization</strong> — finding candidate locations from a token window.</li>
+          </ul>
+        </div>
+
+        <div class="section">
+          <h2>Memory and replay</h2>
+          <ul>
+            <li><strong>Replay</strong> — rebuild state by re‑running events from a checkpoint.</li>
+            <li><strong>Checkpoint</strong> — a saved snapshot that lets replay start closer to “now”.</li>
+            <li><strong>Slow map</strong> — coarse summaries for very old history (approximate memory).</li>
+          </ul>
+        </div>
+
+        <div class="section">
+          <h2>Frames and semantics</h2>
+          <ul>
+            <li><strong>Frame</strong> — a semantic lens, like “emotion” or “conflict type”.</li>
+            <li><strong>CNL</strong> — Constrained Natural Language; a small list of allowed frames.</li>
+            <li><strong>Frame trend</strong> — a simple time series of how a frame changes.</li>
+          </ul>
+        </div>
+
+        <div class="section">
+          <h2>Reasoning and answers</h2>
+          <ul>
+            <li><strong>Consensus</strong> — voting across columns to reduce noise and ambiguity.</li>
+            <li><strong>Verifier</strong> — rules that check for contradictions (e.g., dead actors acting).</li>
+            <li><strong>Verdict</strong> — the answer label: <code>supported</code>, <code>conflicting</code>, or <code>unsupported</code>.</li>
+          </ul>
+        </div>
+
+        <div class="section">
+          <h2>Two tiny examples</h2>
+          <p>
+            <strong>Example 1 (step token):</strong> “Alice enters room_A” becomes tokens
+            for <em>Alice</em>, <em>enters</em>, <em>room_A</em>, then a single step token that
+            represents the whole event.
+          </p>
+          <p>
+            <strong>Example 2 (consensus):</strong> If 4 out of 5 columns say Alice is in room_A
+            and 1 column disagrees, the system reports room_A but notes the disagreement.
+          </p>
+        </div>
+      </main>
+
+      <footer class="footer">
+        <a href="index.html">Home</a>
+        <span class="muted">•</span>
+        <a href="how-it-works.html">How it Works</a>
+        <span class="muted">•</span>
+        <a href="frames.html">Frames</a>
+      </footer>
+    </div>
+  </body>
+</html>

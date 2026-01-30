@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>1000Brains Tutorial | VSABrains</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=Fraunces:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="tutorial-body">
+    <div class="app tutorial-app">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-mark">VSA</div>
+          <div>
+            <div class="brand-title">1000Brains Tutorial</div>
+            <div class="brand-subtitle">Intuitive, visual walkthrough inspired by the book</div>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <a class="btn ghost" href="index.html">Back to Demo</a>
+        </div>
+      </header>
+
+      <main class="tutorial-layout">
+        <section class="panel tutorial-panel">
+          <div class="tutorial-header">
+            <div>
+              <div class="tutorial-kicker">Visual Lesson</div>
+              <h1 class="tutorial-title">How “columns” learn, vote, and recall</h1>
+            </div>
+            <div class="tutorial-legend">
+              <span class="legend-dot col-a"></span> Column A
+              <span class="legend-dot col-b"></span> Column B
+              <span class="legend-dot col-c"></span> Column C
+              <span class="legend-dot col-d"></span> New column
+              <span class="legend-dot event-dot"></span> Sensory event
+            </div>
+          </div>
+
+          <div class="tutorial-canvas-wrap">
+            <canvas id="tutorialCanvas" width="900" height="520"></canvas>
+          </div>
+
+          <div class="tutorial-controls">
+            <div class="anim-buttons">
+              <button class="icon-btn" id="tutorialPlay" title="Play">▶</button>
+              <button class="icon-btn" id="tutorialPause" title="Pause">❚❚</button>
+              <button class="icon-btn" id="tutorialNext" title="Next scene">⏭</button>
+            </div>
+            <div class="anim-speed tutorial-speed">
+              <label for="tutorialSpeed">Animation Speed</label>
+              <div class="columns-row">
+                <input type="range" id="tutorialSpeed" min="0" max="100" step="1" value="40" />
+                <div class="columns-value" id="tutorialSpeedValue">1.0x</div>
+              </div>
+              <div class="columns-note" id="tutorialSpeedHint">≈ 6.0s per scene</div>
+            </div>
+            <div class="tutorial-step-row" id="tutorialSteps"></div>
+          </div>
+        </section>
+
+        <section class="panel tutorial-panel tutorial-side">
+          <div class="tutorial-card">
+            <div class="tutorial-card-label">Now showing</div>
+            <h2 id="sceneTitle">Reference frames</h2>
+            <p id="sceneSummary">
+              Columns start in different locations, but observe the same event. Each column uses its
+              own coordinate system. This diversity enables later consensus.
+            </p>
+            <ul id="sceneBullets"></ul>
+          </div>
+
+          <div class="tutorial-card">
+            <div class="tutorial-card-label">Key idea</div>
+            <p id="sceneKey">
+              The system does not store time in a vector. It stores time as a path through space.
+            </p>
+          </div>
+
+          <div class="tutorial-card">
+            <div class="tutorial-card-label">Signals</div>
+            <div class="tutorial-signals" id="sceneSignals"></div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="tutorial.js"></script>
+  </body>
+</html>

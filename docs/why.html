@@ -45,6 +45,31 @@
         </div>
 
         <div class="section">
+          <h2>What is a column, in simple terms?</h2>
+          <p>
+            A column is a small independent witness. It walks across a grid and writes tokens into cells.
+            Multiple columns see the same story but from slightly different coordinate systems.
+          </p>
+          <ul>
+            <li><strong>Why multiple?</strong> So they can disagree and then vote (consensus).</li>
+            <li><strong>Why grids?</strong> So time becomes location and can be indexed.</li>
+          </ul>
+        </div>
+
+        <div class="section">
+          <h2>What are frames?</h2>
+          <p>
+            Frames are semantic lenses that sit on top of events. Think of them as extra tags like
+            “emotion,” “theme,” “dialogue act,” or “conflict type.” They do not replace columns;
+            they help answer higher-level questions.
+          </p>
+          <p>
+            Frames are defined by a CNL profile (a small, constrained list) and then updated at each step.
+            See <a href="frames.html">Frames & CNL</a> for the full explanation.
+          </p>
+        </div>
+
+        <div class="section">
           <h2>Is the meaning of a story its final point?</h2>
           <p>
             No. The final location is not the “meaning.” It is just the end of a trajectory.
@@ -104,6 +129,28 @@
         </div>
 
         <div class="section">
+          <h2>What questions can it answer well?</h2>
+          <ul>
+            <li>Where someone is (now or at a step)</li>
+            <li>Who has an item</li>
+            <li>Whether a contradiction occurred</li>
+            <li>Dominant emotion, theme, or tone (if frames are enabled)</li>
+          </ul>
+          <p>
+            These are strong because they map to indexed locations and explicit frame counters.
+          </p>
+        </div>
+
+        <div class="section">
+          <h2>What questions are hard?</h2>
+          <ul>
+            <li>Deep causal reasoning without explicit rules</li>
+            <li>Unstated implications or “mind-reading”</li>
+            <li>Questions that require facts not in the story</li>
+          </ul>
+        </div>
+
+        <div class="section">
           <h2>Where is the evidence?</h2>
           <p>
             See Experiment 4 in <code>eval/exp4-consensus</code>. It compares a single noisy stream
@@ -113,6 +160,20 @@
           </p>
         </div>
       </main>
+      
+      <footer class="footer">
+        <a href="index.html">Home</a>
+        <span class="muted">•</span>
+        <a href="how-it-works.html">How it Works</a>
+        <span class="muted">•</span>
+        <a href="frames.html">Frames</a>
+        <span class="muted">•</span>
+        <a href="glossary.html">Glossary</a>
+        <span class="muted">•</span>
+        <a href="demo-guide.html">Demo Guide</a>
+        <span class="muted">•</span>
+        <a href="vsa.html">VSA vs VSABrains</a>
+      </footer>
     </div>
   </body>
 </html>

@@ -5,6 +5,10 @@
     essence? The short answer is “yes, but selectively.” The most reliable wins come from reducing
     map capacity and write pressure, while keeping the index sharp enough for localization.
   </p>
+  <p class="note">
+    Plain-language version: we can often store less by saving fewer tokens per cell or by writing
+    less frequently, but we must keep enough signal to still find past events.
+  </p>
 
   <h3>Brainstorming: Where Compression Can Come From</h3>
   <table class="table">
@@ -31,6 +35,10 @@
     We ran a small sweep on Exp4 with the same noise and column count, varying grid size and
     heavy-hitters capacity <code>k</code>. The metrics below are lower-bound proxies (not exact
     memory measurements).
+  </p>
+  <p>
+    How to read this: lower “Total Bytes Proxy” is better for memory, while “Consensus Acc” shows
+    whether we lost accuracy. The goal is to reduce bytes without hurting accuracy.
   </p>
 
   <table class="table">
@@ -77,4 +85,3 @@
     Compression sweep run: 2026-01-27T13:29:59Z. Script: <code>eval/exp4-consensus/compression-sweep.mjs</code>.
   </p>
 </div>
-

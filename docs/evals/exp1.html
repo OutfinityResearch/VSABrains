@@ -5,6 +5,29 @@
     situation. The key signal is that consensus should outperform any single column under ambiguity
     and noise.
   </p>
+  <p class="note">
+    Plain-language version: several small “witnesses” see the same story with different noise.
+    We want the group vote to be more reliable than any single witness.
+  </p>
+  <p>
+    Alignment means that even if columns start in different places, they can still agree
+    on which location best matches the query window.
+  </p>
+
+  <h3>How this experiment works</h3>
+  <ul>
+    <li>Generate a synthetic story with known locations.</li>
+    <li>Give each column a slightly different noisy view of the same window.</li>
+    <li>Ask “where is the window?” and compare single-column vs consensus.</li>
+  </ul>
+
+  <h3>How to read the metrics</h3>
+  <ul>
+    <li><strong>Loc@1</strong> = top-1 accuracy (best guess is correct).</li>
+    <li><strong>Loc@5</strong> = top-5 accuracy (correct location is in the top 5).</li>
+    <li><strong>Consensus Gain</strong> = how much better the vote is vs one column.</li>
+  </ul>
+
   <table class="table">
     <thead>
       <tr>
@@ -22,5 +45,14 @@
       <tr><td>Ambiguous Disambiguation</td><td>1.00</td><td>&gt; 0.70</td><td><span class="status-pill status-pass">Pass</span></td></tr>
     </tbody>
   </table>
-</div>
 
+  <h3>Why this matters</h3>
+  <p>
+    If alignment fails, the architecture is unreliable under noise. Passing here is the
+    minimum proof that “many small columns” is not just extra compute—it is extra robustness.
+  </p>
+
+  <p class="note">
+    Repro: <code>node eval/exp1-alignment/run.mjs</code>
+  </p>
+</div>

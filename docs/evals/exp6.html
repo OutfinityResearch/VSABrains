@@ -1,0 +1,55 @@
+<div class="section">
+  <h2>Experiment 6: Literature & Dialogue Semantics</h2>
+  <p>
+    Goal: test whether semantic frame indexing makes complex, high‑level questions faster than
+    a naive scan. This experiment does <strong>not</strong> require an LLM; it simulates a semantic
+    encoder and focuses on query speed.
+  </p>
+  <p class="note">
+    Plain-language version: if we pre‑count semantic frames (emotion, theme, tone), we should
+    answer “what’s dominant?” much faster than scanning the whole story every time.
+  </p>
+
+  <h3>How this experiment works</h3>
+  <ul>
+    <li>Generate a large stream of semantic facts (frame, subject, value).</li>
+    <li>Build an index: for each frame, count the most frequent values.</li>
+    <li>Run the same queries in two ways:</li>
+  </ul>
+  <ol>
+    <li><strong>Naive scan</strong> — count values by scanning all facts.</li>
+    <li><strong>Indexed</strong> — answer directly from the pre‑built frame index.</li>
+  </ol>
+
+  <h3>What this experiment proves</h3>
+  <ul>
+    <li>Frame indexing makes high‑level semantic queries much faster.</li>
+    <li>The speedup grows with the number of facts.</li>
+    <li>This validates the design idea behind “frames” and “CNL profiles”.</li>
+  </ul>
+
+  <h3>Output fields</h3>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Field</th>
+        <th>Meaning (plain language)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td><code>facts</code></td><td>How many semantic facts were generated.</td></tr>
+      <tr><td><code>queries</code></td><td>How many frame queries were timed.</td></tr>
+      <tr><td><code>naiveMs</code></td><td>Total time for naive scan queries (milliseconds).</td></tr>
+      <tr><td><code>indexedMs</code></td><td>Total time for indexed queries (milliseconds).</td></tr>
+      <tr><td><code>speedup</code></td><td>Naive time ÷ indexed time (higher is better).</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Repro</h3>
+  <p class="note">
+    Run: <code>node eval/exp6-literature/run.mjs</code>
+  </p>
+  <p class="note">
+    Larger run: <code>node eval/exp6-literature/run.mjs --facts 100000 --queries 40 --seed 7</code>
+  </p>
+</div>

@@ -6,6 +6,22 @@
     Consensus should recover the correct location more reliably than any single view or a naive list scan.
   </p>
   <p class="note">
+    Plain-language version: many small witnesses see the story with different errors.
+    Voting should beat a single witness and should beat a naive scan that only accepts exact matches.
+  </p>
+  <h3>How this experiment works</h3>
+  <ul>
+    <li>Generate a clean story and store it in all columns.</li>
+    <li>Create a noisy query window by corrupting some tokens.</li>
+    <li>Ask each column to localize that window.</li>
+    <li>Compare single‑column answers, a consensus vote, and a naive list scan.</li>
+  </ul>
+  <h3>What “noise” means</h3>
+  <p>
+    Noise is the fraction of tokens in the query window that are randomly replaced.
+    Higher noise simulates sloppy input or uncertain observations.
+  </p>
+  <p class="note">
     Baselines: “Single Column” means using just column 0. “Best Column” is the best-performing column
     without voting (an optimistic upper bound). “Naive List” linearly scans the full token list and only
     accepts an exact window match.
@@ -136,4 +152,3 @@
     </tbody>
   </table>
 </div>
-

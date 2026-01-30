@@ -4,6 +4,27 @@
     Goal: answer questions with explicit evidence and clear verdicts. The system should support
     answerable questions, refuse unsupported ones, and detect conflicts across facts and qualifiers.
   </p>
+  <p class="note">
+    Plain-language version: the system must show its evidence and admit when it does not know.
+  </p>
+
+  <h3>How this experiment works</h3>
+  <ul>
+    <li>Extract structured facts from text (using a deterministic extractor stub).</li>
+    <li>Store facts with qualifiers (time, version, scope).</li>
+    <li>Ask questions that require evidence chains and conflict checks.</li>
+    <li>Score precision, recall, and conflict detection.</li>
+  </ul>
+
+  <h3>How to read the metrics</h3>
+  <ul>
+    <li><strong>Supported Precision/Recall</strong> = correct answers with evidence.</li>
+    <li><strong>Refusal Accuracy</strong> = correctly refuses unsupported questions.</li>
+    <li><strong>Conflict Precision/Recall</strong> = finds contradictions when they exist.</li>
+    <li><strong>Chain Correctness</strong> = multi‑hop reasoning is correct.</li>
+    <li><strong>Extraction Consistency</strong> = same facts from repeated extractions.</li>
+  </ul>
+
   <table class="table">
     <thead>
       <tr>
@@ -27,5 +48,9 @@
     Exp3 currently uses a deterministic extractor stub for evaluation consistency; real LLM extraction
     quality and variance remain untested.
   </p>
+  <p>
+    Interpretation: these results show that the reasoning and verification layers can
+    behave correctly <em>if</em> the facts are reliable. They do not claim that extraction
+    from raw text is solved.
+  </p>
 </div>
-

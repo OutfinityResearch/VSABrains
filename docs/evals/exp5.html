@@ -1,13 +1,14 @@
 <div class="section">
-  <h2>Experiment 5: Performance at Scale (100k Facts)</h2>
+  <h2>Experiment 5: Performance at Scale</h2>
   <p>
-    Goal: demonstrate that the architecture starts to pay off on larger histories.
-    We generate a long demo-style narrative, then compare VSABrains against a naive
-    baseline that replays from step 0 on every query and scans the full list for localization.
+    Goal: show when indexed replay starts to beat a naive full replay on larger histories.
+    We generate a long demo‑style narrative, then compare VSABrains against a naive
+    baseline that always replays from step 0 and scans the full list for localization.
   </p>
   <p class="note">
-    This page uses a <strong>100,000 fact</strong> run to keep results fast to reproduce
-    while still showing scaling effects. The experiment script supports up to 1,000,000 facts.
+    Default run size is <strong>10,000 facts</strong> for fast local testing.
+    The example numbers below come from a <strong>100,000‑fact</strong> run (see the date at the bottom).
+    The script supports up to 1,000,000 facts.
   </p>
 
   <table class="table">
@@ -23,7 +24,7 @@
       <tr>
         <td>Ingestion</td>
         <td>14.34 s for 100,000 facts (~6,971 facts/s)</td>
-        <td>Feasible CPU-first ingestion at this scale</td>
+        <td>Feasible CPU‑first ingestion at this scale</td>
         <td><span class="status-pill status-pass">Good</span></td>
       </tr>
       <tr>
@@ -79,7 +80,7 @@
       </tr>
     </thead>
     <tbody>
-      <tr><td>Facts</td><td>100,000</td></tr>
+      <tr><td>Facts</td><td>100,000 (example run)</td></tr>
       <tr><td>Queries</td><td>24</td></tr>
       <tr><td>Localization Runs</td><td>24</td></tr>
       <tr><td>Columns</td><td>1</td></tr>
@@ -94,6 +95,10 @@
     <code>node eval/exp5-performance/run.mjs --facts 100000 --queries 24 --localizationRuns 24 --columns 1 --checkpointInterval 5000 --progressEvery 20000</code>
   </p>
   <p class="note">
-    Last run: 2026-01-27. Source: <code>eval/exp5-performance/run.mjs</code>.
+    Default (fast) run:
+    <code>node eval/exp5-performance/run.mjs</code>
+  </p>
+  <p class="note">
+    Example run recorded: 2026-01-27. Source: <code>eval/exp5-performance/run.mjs</code>.
   </p>
 </div>
